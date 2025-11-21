@@ -1,16 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useRouter } from "expo-router";
+import { useContext, useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AuthContext } from "../context/AuthContext";
 
-export default function ClockIn({  user,
-}: {
-  user?: { name?: string; email?: string; hourRate?: number } | null; }) {
-   // Si no hay nombre definido, usamos el correo
-  
-   const displayName = user?.name || user?.email || "Usuario";
-  
-  const [working, setWorking] = useState(false); 
-  
+export default function ClockIn() {
+  const { user, loading } = useContext(AuthContext);
+  const router = useRouter();
+
+  const [working, setWorking] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/"); // Redirige a login si no hay usuario
+    }
+  }, [user, loading]);
+
+  if (!user || loading) return null;
+
+  const displayName = user?.nombre || user?.email || "Usuario";
 
   const handlePress = () => {
     setWorking(!working); // alterna entre iniciar y finalizar
@@ -19,7 +27,6 @@ export default function ClockIn({  user,
 
   return (
     <View style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -27,7 +34,7 @@ export default function ClockIn({  user,
           <Text style={styles.headerText}>Hola, {displayName}</Text>
         </View>
 
-       <View style={styles.statusContainer}>
+        <View style={styles.statusContainer}>
           <View style={[styles.statusDot, { backgroundColor: working ? "green" : "gray" }]} />
           <Text style={[styles.statusText, { color: working ? "green" : "gray" }]}>
             {working ? "Trabajando" : "Fuera de turno"}
@@ -36,7 +43,7 @@ export default function ClockIn({  user,
       </View>
 
       {/* BOTÓN FICHAR */}
-       <View style={styles.buttonWrapper}>
+      <View style={styles.buttonWrapper}>
         <TouchableOpacity
           style={[
             styles.mainButton,
@@ -52,7 +59,6 @@ export default function ClockIn({  user,
 
       {/* TARJETAS DE HORAS */}
       <View style={styles.cardsContainer}>
-
         {/* Horas Hoy */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Horas Hoy</Text>
@@ -73,7 +79,6 @@ export default function ClockIn({  user,
           <Text style={styles.cardValue}>96h</Text>
           <Text style={styles.cardSub}>Aprox. 960.00€</Text>
         </View>
-
       </View>
     </View>
   );
@@ -86,7 +91,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F5F7",
   },
 
-  /* HEADER */
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -119,7 +123,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* BOTÓN PRINCIPAL */
   buttonWrapper: {
     alignItems: "center",
     marginBottom: 40,
@@ -137,7 +140,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* TARJETAS */
   cardsContainer: {
     alignItems: "center",
     gap: 20,
