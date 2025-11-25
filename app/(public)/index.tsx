@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useContext, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { loginUser } from "../api"; // tu función de login que hace POST
-import { AuthContext } from "./context/AuthContext";
+import { loginUser } from "../../api"; // tu función de login que hace POST
+import { AuthContext } from "../../context/AuthContext";
 
 export default function Index() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -12,12 +14,28 @@ export default function Index() {
   const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Por favor ingresa email y contraseña");
+      return;
+    }
+
     try {
       const data = await loginUser(email, password); // llamada a tu API
       await login(data); // guarda token + user en AsyncStorage y contexto
     } catch (err: any) {
-      Alert.alert("Error", err.response?.data?.error || "No se pudo iniciar sesión");
+      if (err.response) {
+        Alert.alert("Error", err.response.data?.error || "Usuario o contraseña incorrectos");
+      } else if (err.request) {
+        Alert.alert("Error", "No se pudo conectar al servidor");
+      } else {
+        Alert.alert("Error", "Ocurrió un error inesperado");
+      }
     }
+  };
+
+  const handleRegister = () => {
+     router.push("/register");
+    
   };
 
   return (
@@ -64,7 +82,10 @@ export default function Index() {
       </TouchableOpacity>
 
       <Text style={styles.footerText}>
-        ¿No tienes una cuenta? <Text style={styles.linkBlue}>Regístrate aquí</Text>
+        ¿No tienes una cuenta?{" "}
+        <Text style={styles.linkBlue} onPress={handleRegister}>
+          Regístrate aquí
+        </Text>
       </Text>
     </View>
   );

@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useContext, useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function Historical() {
   const { user, loading } = useContext(AuthContext);

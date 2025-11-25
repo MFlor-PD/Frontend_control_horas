@@ -1,7 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
-export default function TabLayout() {
+export default function TabsLayout() {
+  const { user, loading } = useContext(AuthContext);
+
+  // 🔹 mientras carga, no mostrar nada
+  if (loading) return null;
+
+  // 🔹 si no hay usuario, redirige al login público
+  if (!user) return <Redirect href="/(public)/index" />;
+
+  // 🔹 usuario logueado → mostrar tabs
   return (
     <Tabs
       screenOptions={{
@@ -18,7 +29,11 @@ export default function TabLayout() {
         options={{
           headerTitle: "Clock In",
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
+            <Ionicons
+              name={focused ? "time" : "time-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -27,7 +42,11 @@ export default function TabLayout() {
         options={{
           headerTitle: "Profile",
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -36,7 +55,11 @@ export default function TabLayout() {
         options={{
           headerTitle: "Historical",
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? "document-text" : "document-text-outline"} size={size} color={color} />
+            <Ionicons
+              name={focused ? "document-text" : "document-text-outline"}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

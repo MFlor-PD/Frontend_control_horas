@@ -1,7 +1,7 @@
 // /app/api.ts
 import axios from "axios";
 
-const API_URL = "http://localhost:4000/api/users/login";
+const API_URL = "http://localhost:4000/api";
 
 // Tipos
 export interface User {
