@@ -75,7 +75,7 @@ export default function RegisterScreen() {
       {message !== "" && (
         <View style={{ marginTop: 20, alignItems: "center" }}>
           <Text style={{ color: success ? "green" : "red", textAlign: "center" }}>{message}</Text>
-          {success && <Button title="Volver al login" onPress={() => router.push("/(public)/index")} />}
+          {success && <Button title="Volver al login" onPress={() => router.push("/")} />}
         </View>
       )}
     </View>

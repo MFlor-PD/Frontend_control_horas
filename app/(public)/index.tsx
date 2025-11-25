@@ -20,8 +20,11 @@ export default function Index() {
     }
 
     try {
+      
       const data = await loginUser(email, password); // llamada a tu API
       await login(data); // guarda token + user en AsyncStorage y contexto
+      router.replace("/clockIn");
+
     } catch (err: any) {
       if (err.response) {
         Alert.alert("Error", err.response.data?.error || "Usuario o contraseña incorrectos");

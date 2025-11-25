@@ -10,7 +10,7 @@ export default function TabsLayout() {
   if (loading) return null;
 
   // 🔹 si no hay usuario, redirige al login público
-  if (!user) return <Redirect href="/(public)/index" />;
+  if (!user) return <Redirect href="/" />;
 
   // 🔹 usuario logueado → mostrar tabs
   return (
