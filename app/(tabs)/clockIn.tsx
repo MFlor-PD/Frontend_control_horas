@@ -1,8 +1,9 @@
 // app/(tabs)/clockIn.tsx
+
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
   Fichaje,
   getFichajeActual,
@@ -19,17 +20,45 @@ export default function ClockIn() {
   const [working, setWorking] = useState(false);
   const [fichajeId, setFichajeId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
+
   const intervalRef = useRef<number | null>(null);
 
   const [horasHoy, setHorasHoy] = useState(0);
   const [horasSemana, setHorasSemana] = useState(0);
   const [horasMes, setHorasMes] = useState(0);
 
+  // 🔥 Animated value para animar el cronómetro
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  const animateTick = () => {
+    Animated.timing(animatedValue, {
+      toValue: seconds,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Formatear HH:MM:SS
+  const formatHHMMSS = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+
+    return (
+      String(h).padStart(2, "0") +
+      ":" +
+      String(m).padStart(2, "0") +
+      ":" +
+      String(s).padStart(2, "0")
+    );
+  };
+
+  // Redirigir si no hay usuario
   useEffect(() => {
     if (!loading && !user) router.replace("/");
   }, [loading, user]);
 
-  // Comprobar fichaje activo al entrar
+  // Ver si hay un fichaje en curso
   useEffect(() => {
     if (!user) return;
 
@@ -48,9 +77,9 @@ export default function ClockIn() {
           inicioDate.setHours(Number(h), Number(m), 0, 0);
 
           const ahora = new Date();
-          const diffSecs = Math.floor((ahora.getTime() - inicioDate.getTime()) / 1000);
-          setSeconds(diffSecs);
+          const diff = Math.floor((ahora.getTime() - inicioDate.getTime()) / 1000);
 
+          setSeconds(diff);
           startInterval();
         }
       } catch (error) {
@@ -62,7 +91,7 @@ export default function ClockIn() {
     fetchTotales();
   }, [user]);
 
-  // Intervalo del cronómetro
+  // Intervalo cronómetro
   const startInterval = () => {
     if (intervalRef.current !== null) return;
 
@@ -78,7 +107,12 @@ export default function ClockIn() {
     }
   };
 
-  // Obtener totales día/semana/mes
+  // Animación cada segundo
+  useEffect(() => {
+    animateTick();
+  }, [seconds]);
+
+  // Totales
   const fetchTotales = async () => {
     try {
       const data = await historialFichajes();
@@ -92,62 +126,55 @@ export default function ClockIn() {
         (acc: number, f: Fichaje) => acc + (f.duracionHoras || 0),
         0
       );
-      const horasMes = horasSemana; // Si quieres, puedes filtrar por mes real
 
       setHorasHoy(horasDia);
       setHorasSemana(horasSemana);
-      setHorasMes(horasMes);
+      setHorasMes(horasSemana);
     } catch (error) {
-      console.error("Error al obtener historial:", error);
+      console.error("Error historial:", error);
     }
   };
 
-  // Fichar entrada
   const ficharEntrada = async () => {
     try {
       const data = await registrarEntrada();
       setWorking(true);
       setFichajeId(data.fichaje._id);
+
       setSeconds(0);
       startInterval();
       fetchTotales();
     } catch (error) {
-      console.error("Error al fichar entrada:", error);
+      console.error("Error entrada:", error);
     }
   };
 
-  // Fichar salida
   const ficharSalida = async () => {
     if (!fichajeId) return;
 
     try {
       await registrarSalida(fichajeId);
       stopInterval();
+
       setWorking(false);
       setFichajeId(null);
       setSeconds(0);
+
       fetchTotales();
     } catch (error) {
-      console.error("Error al fichar salida:", error);
+      console.error("Error salida:", error);
     }
   };
 
   const handlePress = () => {
-    if (working) ficharSalida();
-    else ficharEntrada();
+    working ? ficharSalida() : ficharEntrada();
   };
 
-  // Convertir segundos a "HH:MM"
-  const formatTime = (secs: number) => {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m`;
-  };
-
-  if (!user || loading) return null;
+  if (loading || !user) return null;
 
   return (
     <View style={styles.container}>
+
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -170,6 +197,24 @@ export default function ClockIn() {
         </View>
       </View>
 
+      {/* 🔥 CRONÓMETRO ARRIBA DEL BOTÓN */}
+      {working && (
+        <Animated.Text
+          style={{
+            fontSize: 38,
+            fontWeight: "bold",
+            textAlign: "center",
+            marginBottom: 10,
+            opacity: animatedValue.interpolate({
+              inputRange: [seconds - 1, seconds],
+              outputRange: [0.4, 1],
+            }),
+          }}
+        >
+          {formatHHMMSS(seconds)}
+        </Animated.Text>
+      )}
+
       {/* BOTÓN */}
       <View style={styles.buttonWrapper}>
         <TouchableOpacity
@@ -184,15 +229,6 @@ export default function ClockIn() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* CRONÓMETRO */}
-      {working && (
-        <View style={{ alignItems: "center", marginBottom: 20 }}>
-          <Text style={{ fontSize: 32, fontWeight: "bold" }}>
-            {formatTime(seconds)}
-          </Text>
-        </View>
-      )}
 
       {/* TARJETAS */}
       <View style={styles.cardsContainer}>
@@ -211,23 +247,26 @@ export default function ClockIn() {
           <Text style={styles.cardValue}>{horasMes.toFixed(2)}h</Text>
         </View>
       </View>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F3F5F7" },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 25,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
   headerText: { fontSize: 16, fontWeight: "600" },
   statusContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
   statusDot: { width: 10, height: 10, borderRadius: 50 },
   statusText: { fontWeight: "600" },
+
   buttonWrapper: { alignItems: "center", marginBottom: 30 },
   mainButton: {
     paddingVertical: 16,
@@ -236,6 +275,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: { color: "white", fontSize: 18, fontWeight: "600" },
+
   cardsContainer: { alignItems: "center", gap: 20 },
   card: {
     width: "90%",
