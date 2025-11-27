@@ -1,4 +1,3 @@
-// context/AuthContext.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useEffect, useState } from "react";
 
@@ -8,6 +7,7 @@ interface AuthContextType {
   loading: boolean;        // SOLO para carga inicial
   login: (data: any) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (data: any) => Promise<void>; // Función para actualizar el usuario
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -16,6 +16,7 @@ export const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => {},
   logout: async () => {},
+  updateUser: async () => {},
 });
 
 export const AuthProvider = ({ children }: any) => {
@@ -44,12 +45,11 @@ export const AuthProvider = ({ children }: any) => {
     loadUserFromStorage();
   }, []);
 
-  // 🔥 LOGIN (NO debe tocar loading)
+  // 🔥 LOGIN
   const login = async (data: any) => {
     try {
       await AsyncStorage.setItem("token", data.token);
       await AsyncStorage.setItem("user", JSON.stringify(data.user));
-
       setToken(data.token);
       setUser(data.user);
     } catch (error) {
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }: any) => {
     }
   };
 
-  // 🔥 LOGOUT (tampoco toca loading)
+  // 🔥 LOGOUT
   const logout = async () => {
     try {
       await AsyncStorage.removeItem("token");
@@ -70,8 +70,18 @@ export const AuthProvider = ({ children }: any) => {
     }
   };
 
+  // 🔄 ACTUALIZAR USUARIO
+  const updateUser = async (data: any) => {
+    try {
+      setUser(data); // Actualiza estado local
+      await AsyncStorage.setItem("user", JSON.stringify(data)); // Actualiza AsyncStorage
+    } catch (error) {
+      console.log("Error actualizando usuario:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -60,10 +60,21 @@ export const getProfile = async (userId: string) => {
   return res.data as User;
 };
 
-export const updateProfile = async (userId: string, nombre: string, foto: string, valorHora: number) => {
-  const res = await axiosInstance.put(`/users/me/${userId}`, { nombre, foto, valorHora });
+export const updateProfile = async (
+  userId: string,
+  data: {
+    nombre?: string;
+    email?: string;
+    foto?: string;
+    password?: string;
+    valorHora?: number;
+    moneda?: string;
+  }
+) => {
+  const res = await axiosInstance.put(`/users/me/${userId}`, data);
   return res.data as User;
 };
+
 
 // ---------------------- FICHAJES ---------------------- //
 export const registrarEntrada = async () => {
