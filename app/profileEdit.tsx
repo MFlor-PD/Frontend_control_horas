@@ -8,7 +8,7 @@ import { updateProfile } from "../api";
 import { AuthContext } from "../context/AuthContext";
 
 export default function EditProfile() {
-  const { user, loading, updateUser } = useContext(AuthContext);
+  const { user, loading, updateUser, logout } = useContext(AuthContext);
   const router = useRouter();
 
   const [nombre, setNombre] = useState("");
@@ -35,7 +35,7 @@ export default function EditProfile() {
 
   const handleSave = async () => {
     try {
-      const updated = await updateProfile(user.id, {
+      const updatedUser = await updateProfile(user.id, {
         nombre,
         email,
         foto,
@@ -44,11 +44,20 @@ export default function EditProfile() {
         moneda,
       });
 
-      // Actualizamos el usuario en AuthContext
-      await updateUser(updated);
+      if (password) {
+        Alert.alert(
+          "Perfil actualizado",
+          "La contraseña se ha cambiado. Por seguridad, vuelve a iniciar sesión."
+        );
+        await logout(); // borra token y user
+        router.replace("/"); // va a login
+      } else {
+        // Actualizamos el contexto para reflejar los cambios
+        await updateUser(updatedUser);
+        Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
+        router.replace("/(tabs)/profile");
+      }
 
-      Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
-      router.replace("/(tabs)/profile");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Error al guardar los cambios");
     }
