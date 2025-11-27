@@ -1,4 +1,5 @@
 // /app/api.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
 const API_URL = "http://localhost:4000/api";
@@ -23,19 +24,14 @@ export interface Fichaje {
   extra?: boolean;
 }
 
-// Token JWT global (puedes usar AsyncStorage en app real)
-let token: string | null = null;
-export const setToken = (newToken: string) => {
-  token = newToken;
-};
-
 // Axios instance
 const axiosInstance = axios.create({
   baseURL: API_URL,
 });
 
-// Interceptor para enviar token en todas las requests
-axiosInstance.interceptors.request.use(config => {
+// Interceptor para enviar token desde AsyncStorage en todas las requests
+axiosInstance.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem("token");
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -88,4 +84,16 @@ export const marcarExtra = async (fichajeId: string) => {
 export const historialFichajes = async () => {
   const res = await axiosInstance.get("/fichajes/historial");
   return res.data as { historial: Fichaje[]; totales: { semana: number; mes: number } };
+};
+
+// ---------------------- NUEVO ENDPOINT ---------------------- //
+// Obtener fichaje en curso
+export const getFichajeActual = async () => {
+  try {
+    const res = await axiosInstance.get("/fichajes/actual");
+    return res.data as { fichajeEnCurso?: Fichaje };
+  } catch (error) {
+    console.error("Error getFichajeActual:", error);
+    return null;
+  }
 };
