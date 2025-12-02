@@ -108,3 +108,32 @@ export const getFichajeActual = async () => {
     return null;
   }
 };
+
+
+// ---------------------- NUEVO ENDPOINT eliminar fichajes---------------------- //
+
+
+export const eliminarFichaje = async (fichajeId: string) => {
+  //console.log("📡 Llamando API eliminar:", fichajeId);
+  try {
+    const res = await axiosInstance.delete(`/fichajes/eliminar/${fichajeId}`);
+    console.log("✅ Respuesta:", res.data);
+    return res.data;
+  } catch (error: any) {
+    console.error("❌ Error eliminando:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Eliminar todo el historial
+export const eliminarTodoHistorial = async () => {
+  //console.log("📡 Llamando API eliminar todo");
+  try {
+    const res = await axiosInstance.delete("/fichajes/eliminar-historial");
+    console.log("✅ Respuesta:", res.data);
+    return res.data;
+  } catch (error: any) {
+    console.error("❌ Error eliminando todo:", error.response?.data || error.message);
+    throw error;
+  }
+};
