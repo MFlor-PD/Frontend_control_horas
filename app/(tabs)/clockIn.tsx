@@ -1,16 +1,11 @@
 // app/(tabs)/clockIn.tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import {
-  Fichaje,
-  getFichajeActual,
-  historialFichajes,
-  registrarEntrada,
-  registrarSalida,
-} from "../../api";
+import { getFichajeActual, registrarEntrada, registrarSalida } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 
 export default function ClockIn() {
@@ -27,7 +22,6 @@ export default function ClockIn() {
   const [horasSemana, setHorasSemana] = useState(0);
   const [horasMes, setHorasMes] = useState(0);
 
-  // 🔥 Animated value para animar el cronómetro
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   const animateTick = () => {
@@ -38,12 +32,10 @@ export default function ClockIn() {
     }).start();
   };
 
-  // Formatear HH:MM:SS
   const formatHHMMSS = (secs: number) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-
     return (
       String(h).padStart(2, "0") +
       ":" +
@@ -58,7 +50,7 @@ export default function ClockIn() {
     if (!loading && !user) router.replace("/");
   }, [loading, user]);
 
-  // Ver si hay un fichaje en curso
+  // Cargar fichaje activo y totales locales al iniciar
   useEffect(() => {
     if (!user) return;
 
@@ -87,14 +79,26 @@ export default function ClockIn() {
       }
     };
 
+    const loadLocalTotals = async () => {
+      try {
+        const hoy = await AsyncStorage.getItem("horasHoy");
+        const semana = await AsyncStorage.getItem("horasSemana");
+        const mes = await AsyncStorage.getItem("horasMes");
+
+        if (hoy) setHorasHoy(Number(hoy));
+        if (semana) setHorasSemana(Number(semana));
+        if (mes) setHorasMes(Number(mes));
+      } catch (err) {
+        console.error("Error cargando totales locales:", err);
+      }
+    };
+
     fetchActivo();
-    fetchTotales();
+    loadLocalTotals();
   }, [user]);
 
-  // Intervalo cronómetro
   const startInterval = () => {
     if (intervalRef.current !== null) return;
-
     intervalRef.current = setInterval(() => {
       setSeconds((s) => s + 1);
     }, 1000) as unknown as number;
@@ -107,43 +111,24 @@ export default function ClockIn() {
     }
   };
 
-  // Animación cada segundo
   useEffect(() => {
     animateTick();
   }, [seconds]);
 
-  // Totales
-  const fetchTotales = async () => {
-    try {
-      const data = await historialFichajes();
-      const hoyStr = new Date().toDateString();
-
-      const horasDia = data.historial
-        .filter((f: Fichaje) => new Date(f.fecha).toDateString() === hoyStr)
-        .reduce((acc: number, f: Fichaje) => acc + (f.duracionHoras || 0), 0);
-
-      const horasSemana = data.historial.reduce(
-        (acc: number, f: Fichaje) => acc + (f.duracionHoras || 0),
-        0
-      );
-
-      setHorasHoy(horasDia);
-      setHorasSemana(horasSemana);
-      setHorasMes(horasSemana);
-    } catch (error) {
-      console.error("Error historial:", error);
-    }
-  };
+  // Guardar totales en AsyncStorage cada vez que cambian
+  useEffect(() => {
+    AsyncStorage.setItem("horasHoy", horasHoy.toString());
+    AsyncStorage.setItem("horasSemana", horasSemana.toString());
+    AsyncStorage.setItem("horasMes", horasMes.toString());
+  }, [horasHoy, horasSemana, horasMes]);
 
   const ficharEntrada = async () => {
     try {
       const data = await registrarEntrada();
       setWorking(true);
       setFichajeId(data.fichaje._id);
-
       setSeconds(0);
       startInterval();
-      fetchTotales();
     } catch (error) {
       console.error("Error entrada:", error);
     }
@@ -153,15 +138,22 @@ export default function ClockIn() {
     if (!fichajeId) return;
 
     try {
-      await registrarSalida(fichajeId);
-      stopInterval();
+  const salidaData = await registrarSalida(fichajeId);
 
-      setWorking(false);
-      setFichajeId(null);
-      setSeconds(0);
+  // Duración sacada del fichaje
+  const duracion: number = salidaData.fichaje.duracionHoras || 0;
 
-      fetchTotales();
-    } catch (error) {
+  stopInterval();
+  setWorking(false);
+  setFichajeId(null);
+  setSeconds(0);
+
+  // Sumar al acumulado local
+  setHorasHoy((prev) => prev + duracion);
+  setHorasSemana((prev) => prev + duracion);
+  setHorasMes((prev) => prev + duracion);
+
+} catch (error) {
       console.error("Error salida:", error);
     }
   };
@@ -170,11 +162,20 @@ export default function ClockIn() {
     working ? ficharSalida() : ficharEntrada();
   };
 
+  const resetTotales = async () => {
+    setHorasHoy(0);
+    setHorasSemana(0);
+    setHorasMes(0);
+
+    await AsyncStorage.removeItem("horasHoy");
+    await AsyncStorage.removeItem("horasSemana");
+    await AsyncStorage.removeItem("horasMes");
+  };
+
   if (loading || !user) return null;
 
   return (
     <View style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -197,7 +198,7 @@ export default function ClockIn() {
         </View>
       </View>
 
-      {/* 🔥 CRONÓMETRO ARRIBA DEL BOTÓN */}
+      {/* CRONÓMETRO */}
       {working && (
         <Animated.Text
           style={{
@@ -215,7 +216,7 @@ export default function ClockIn() {
         </Animated.Text>
       )}
 
-      {/* BOTÓN */}
+      {/* BOTÓN PRINCIPAL */}
       <View style={styles.buttonWrapper}>
         <TouchableOpacity
           style={[
@@ -248,6 +249,22 @@ export default function ClockIn() {
         </View>
       </View>
 
+      {/* 🔄 BOTÓN RESET TOTALES — ABAJO */}
+      <View style={{ alignItems: "center", marginTop: 25 }}>
+        <TouchableOpacity
+          onPress={resetTotales}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 20,
+            backgroundColor: "#888",
+            borderRadius: 30,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>
+            Reset
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -267,7 +284,7 @@ const styles = StyleSheet.create({
   statusDot: { width: 10, height: 10, borderRadius: 50 },
   statusText: { fontWeight: "600" },
 
-  buttonWrapper: { alignItems: "center", marginBottom: 30 },
+  buttonWrapper: { alignItems: "center", marginBottom: 10 },
   mainButton: {
     paddingVertical: 16,
     borderRadius: 50,
