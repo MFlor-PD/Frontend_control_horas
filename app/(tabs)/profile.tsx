@@ -25,10 +25,18 @@ export default function Profile() {
 
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => router.push("/profileEdit")} // ruta absoluta fuera de tabs
+            onPress={() => router.push("/profileEdit")}
           >
             <Text style={styles.editButtonText}>Editar Perfil</Text>
           </TouchableOpacity>
+
+          {/* Nueva sección: Mi Tarifa por Hora */}
+          <View style={styles.tarifaContainer}>
+            <Text style={styles.tarifaLabel}>Mi Tarifa por Hora</Text>
+            <Text style={styles.tarifaValue}>
+              {user.valorHora?.toFixed(2) || "0.00"} {user.moneda || "EUR"}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -50,8 +58,11 @@ const styles = StyleSheet.create({
   avatar: { width: 70, height: 70, borderRadius: 35, marginBottom: 10 },
   userName: { fontSize: 18, fontWeight: "700", color: "#000", marginBottom: 5 },
   userEmail: { color: "#666", marginBottom: 15 },
-  editButton: { backgroundColor: "#E4ECFF", paddingVertical: 10, borderRadius: 10, width: "60%", alignItems: "center" },
+  editButton: { backgroundColor: "#E4ECFF", paddingVertical: 10, borderRadius: 10, width: "60%", alignItems: "center", marginBottom: 15 },
   editButtonText: { color: "#2B6EF2", fontWeight: "600" },
+  tarifaContainer: { marginTop: 10, alignItems: "center" },
+  tarifaLabel: { fontSize: 14, color: "#555", fontWeight: "600", marginBottom: 5 },
+  tarifaValue: { fontSize: 16, fontWeight: "700", color: "#000" },
   footer: { flexDirection: "row", justifyContent: "space-between", paddingBottom: 30 },
   footerLink: { fontSize: 12, color: "#777" },
 });

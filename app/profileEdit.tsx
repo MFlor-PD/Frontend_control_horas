@@ -1,9 +1,8 @@
-// app/profileEdit.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { updateProfile } from "../api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -17,7 +16,20 @@ export default function EditProfile() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [valorHora, setValorHora] = useState("");
-  const [moneda, setMoneda] = useState("USD - Dólar estadounidense");
+  const [moneda, setMoneda] = useState("EUR - Euro");
+  const [monedaDefault, setMonedaDefault] = useState(false);
+
+  // ✅ Monedas locales
+  const [monedasLocales, setMonedasLocales] = useState([
+    { denominacion: "USD", nombre: "Dólar estadounidense" },
+    { denominacion: "EUR", nombre: "Euro" },
+    { denominacion: "ARS", nombre: "Peso argentino" },
+    { denominacion: "GBP", nombre: "Libra esterlina" },
+  ]);
+
+  const [showNuevaMoneda, setShowNuevaMoneda] = useState(false);
+  const [nuevaDenominacion, setNuevaDenominacion] = useState("");
+  const [nuevoNombre, setNuevoNombre] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -27,7 +39,8 @@ export default function EditProfile() {
       setEmail(user.email);
       setFoto(user.foto || "");
       setValorHora(user.valorHora?.toString() || "0.00");
-      setMoneda(user.moneda || "USD - Dólar estadounidense");
+      setMoneda(user.moneda || "EUR - Euro");
+      setMonedaDefault(false); // solo local
     }
   }, [user, loading]);
 
@@ -44,23 +57,35 @@ export default function EditProfile() {
         moneda,
       });
 
+      await updateUser({ ...updatedUser, monedaDefault });
+
       if (password) {
         Alert.alert(
           "Perfil actualizado",
           "La contraseña se ha cambiado. Por seguridad, vuelve a iniciar sesión."
         );
-        await logout(); // borra token y user
-        router.replace("/"); // va a login
+        await logout(); 
+        router.replace("/"); 
       } else {
-        // Actualizamos el contexto para reflejar los cambios
-        await updateUser(updatedUser);
         Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
         router.replace("/(tabs)/profile");
       }
-
     } catch (err: any) {
       Alert.alert("Error", err.message || "Error al guardar los cambios");
     }
+  };
+
+  // ✅ Guardar nueva moneda local
+  const handleAgregarMoneda = () => {
+    if (!nuevaDenominacion || !nuevoNombre) {
+      Alert.alert("Error", "Debe completar ambos campos");
+      return;
+    }
+    setMonedasLocales([...monedasLocales, { denominacion: nuevaDenominacion, nombre: nuevoNombre }]);
+    setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
+    setNuevaDenominacion("");
+    setNuevoNombre("");
+    setShowNuevaMoneda(false);
   };
 
   return (
@@ -98,15 +123,53 @@ export default function EditProfile() {
           <Text style={styles.label}>Moneda</Text>
           <View style={styles.pickerContainer}>
             <Picker selectedValue={moneda} onValueChange={(itemValue) => setMoneda(itemValue)}>
-              <Picker.Item label="USD - Dólar estadounidense" value="USD - Dólar estadounidense" />
-              <Picker.Item label="EUR - Euro" value="EUR - Euro" />
-              <Picker.Item label="ARS - Peso argentino" value="ARS - Peso argentino" />
-              <Picker.Item label="GBP - Libra esterlina" value="GBP - Libra esterlina" />
+              {monedasLocales.map((m, index) => (
+                <Picker.Item
+                  key={index}
+                  label={`${m.denominacion} - ${m.nombre}`}
+                  value={`${m.denominacion} - ${m.nombre}`}
+                />
+              ))}
             </Picker>
           </View>
+
+          {/* Switch y botón Agregar moneda */}
+          <View style={styles.defaultCurrencyContainer}>
+            <Switch value={monedaDefault} onValueChange={setMonedaDefault} />
+            <Text style={styles.defaultCurrencyLabel}>Usar como moneda por defecto</Text>
+
+            <TouchableOpacity style={styles.addCurrencyButton} onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}>
+              <Text style={styles.addCurrencyButtonText}>Agregar nueva moneda</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Card nueva moneda */}
+          {showNuevaMoneda && (
+            <View style={styles.nuevaMonedaCard}>
+              <TextInput
+                style={styles.input}
+                placeholder="Denominación ej: USD"
+                value={nuevaDenominacion}
+                onChangeText={setNuevaDenominacion}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre ej: Dólar estadounidense"
+                value={nuevoNombre}
+                onChangeText={setNuevoNombre}
+              />
+              <View style={styles.buttonsRow}>
+                <TouchableOpacity style={styles.saveButton} onPress={handleAgregarMoneda}>
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowNuevaMoneda(false)}>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* Botones Guardar y Cancelar */}
         <View style={styles.buttonsRow}>
           <TouchableOpacity style={[styles.saveButton, { flex: 1, marginRight: 5 }]} onPress={handleSave}>
             <Text style={styles.saveButtonText}>Guardar Cambios</Text>
@@ -133,9 +196,19 @@ const styles = StyleSheet.create({
   passwordContainer: { flexDirection: "row", alignItems: "center", marginTop: 5 },
   eyeButton: { paddingHorizontal: 10 },
   pickerContainer: { borderWidth: 1, borderColor: "#DDD", borderRadius: 10, marginTop: 5, backgroundColor: "#FFF" },
-  buttonsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 25 },
-  saveButton: { backgroundColor: "#2B6EF2", paddingVertical: 15, borderRadius: 10 },
+
+  // Switch y agregar moneda
+  defaultCurrencyContainer: { flexDirection: "row", alignItems: "center", marginTop: 10, flexWrap: "wrap" },
+  defaultCurrencyLabel: { marginLeft: 10, fontSize: 14, color: "#555", fontWeight: "500" },
+  addCurrencyButton: { marginLeft: 10, backgroundColor: "#2B6EF2", padding: 5, borderRadius: 8 },
+  addCurrencyButtonText: { color: "#FFF", fontSize: 12 },
+
+  // Card nueva moneda
+  nuevaMonedaCard: { backgroundColor: "#F0F0F0", padding: 15, borderRadius: 10, marginTop: 10 },
+
+  buttonsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
+  saveButton: { backgroundColor: "#2B6EF2", paddingVertical: 10, borderRadius: 10, flex: 1, marginRight: 5 },
   saveButtonText: { color: "#FFF", textAlign: "center", fontWeight: "700", fontSize: 16 },
-  cancelButton: { backgroundColor: "#DDD", paddingVertical: 15, borderRadius: 10 },
+  cancelButton: { backgroundColor: "#DDD", paddingVertical: 10, borderRadius: 10, flex: 1, marginLeft: 5 },
   cancelButtonText: { color: "#555", textAlign: "center", fontWeight: "700", fontSize: 16 },
 });
