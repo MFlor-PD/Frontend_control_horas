@@ -236,16 +236,25 @@ export default function ClockIn() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Horas Hoy</Text>
           <Text style={styles.cardValue}>{horasHoy.toFixed(2)}h</Text>
+          <Text style={styles.cardApprox}>
+      aprox. {(horasHoy * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
+    </Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Horas Semana</Text>
           <Text style={styles.cardValue}>{horasSemana.toFixed(2)}h</Text>
+           <Text style={styles.cardApprox}>
+      aprox. {(horasSemana * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
+    </Text>
         </View>
 
         <View style={styles.cardLarge}>
           <Text style={styles.cardTitle}>Horas Mes</Text>
           <Text style={styles.cardValue}>{horasMes.toFixed(2)}h</Text>
+           <Text style={styles.cardApprox}>
+      aprox. {(horasMes * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
+    </Text>
         </View>
       </View>
 
@@ -310,4 +319,11 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: "#555", fontSize: 15, fontWeight: "500" },
   cardValue: { fontSize: 28, fontWeight: "700", marginTop: 5 },
+
+  cardApprox: {
+  marginTop: 5,
+  fontSize: 14,
+  color: "#777",
+  fontWeight: "500",
+}
 });
