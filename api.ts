@@ -137,3 +137,16 @@ export const eliminarTodoHistorial = async () => {
     throw error;
   }
 };
+
+// ---------------------- NUEVO ENDPOINT eliminar usuario ---------------------- //
+export const deleteUser = async (userId: string) => {
+  try {
+    console.log("Llamando API para eliminar usuario:", userId);
+    const res = await axiosInstance.delete(`/users/me/${userId}`);
+    console.log("✅ Usuario eliminado:", res.data);
+    return res.data;
+  } catch (error: any) {
+    console.error("❌ Error eliminando usuario:", error.response?.data || error.message);
+    throw error;
+  }
+};
