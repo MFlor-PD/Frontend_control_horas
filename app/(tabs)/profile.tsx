@@ -76,16 +76,16 @@ export default function Profile() {
   onPress={async () => {
     console.log("Botón presionado!");
     try {
-      setEliminando(true);
-      await deleteUser(user.id);
-      await AsyncStorage.removeItem("token");
-      setEliminando(false);
-      router.replace("/");
-    } catch (err) {
-      setEliminando(false);
-      Alert.alert("Error", "No se pudo eliminar el usuario. Revisa la consola.");
-      console.error(err);
-    }
+    setEliminando(true);
+    await deleteUser(user.id);
+    await AsyncStorage.clear(); // borra todo localmente
+    setEliminando(false);
+    router.replace("/"); // volver al login
+  } catch (err) {
+    setEliminando(false);
+    Alert.alert("Error", "No se pudo eliminar el usuario. Revisa la consola.");
+    console.error(err);
+  }
   }}
   disabled={eliminando}
 >
