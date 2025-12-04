@@ -6,6 +6,8 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getFichajeActual, registrarEntrada, registrarSalida } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
+import { useProfilePhoto } from "../../hooks/useProfilePhoto";
+
 
 export default function ClockIn() {
   const { user, loading } = useContext(AuthContext);
@@ -22,6 +24,8 @@ export default function ClockIn() {
   const [horasMes, setHorasMes] = useState(0);
 
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const { pickImage } = useProfilePhoto();
+
 
   const animateTick = () => {
     Animated.timing(animatedValue, {
@@ -168,13 +172,13 @@ export default function ClockIn() {
   return (
     <View style={styles.container}>
       {/* HEADER USUARIO: FOTO + NOMBRE */}
-      <View style={styles.userHeader}>
-        <Image
-          source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
-          style={styles.userAvatar}
-        />
-        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
-      </View>
+      <TouchableOpacity style={styles.userHeader} onPress={pickImage}>
+  <Image
+    source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
+    style={styles.userAvatar}
+  />
+  <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+</TouchableOpacity>
 
       {/* STATUS */}
       <View style={styles.header}>

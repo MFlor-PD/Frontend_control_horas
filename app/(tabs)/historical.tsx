@@ -20,6 +20,7 @@ import {
   historialFichajes,
 } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
+import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 
 export default function Historical() {
   const { user, loading } = useContext(AuthContext);
@@ -27,6 +28,7 @@ export default function Historical() {
 
   const [grouped, setGrouped] = useState<{ [key: string]: Fichaje[] }>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { pickImage } = useProfilePhoto();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -110,13 +112,13 @@ export default function Historical() {
   return (
     <ScrollView style={styles.container}>
       {/* HEADER USUARIO */}
-      <View style={styles.userHeader}>
-        <Image
-          source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
-          style={styles.userAvatar}
-        />
-        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
-      </View>
+      <TouchableOpacity style={styles.userHeader} onPress={pickImage}>
+  <Image
+    source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
+    style={styles.userAvatar}
+  />
+  <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+</TouchableOpacity>
 
       <Text style={styles.title}>Historial de Fichajes</Text>
 
