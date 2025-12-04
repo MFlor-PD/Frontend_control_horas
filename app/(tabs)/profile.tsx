@@ -12,51 +12,6 @@ export default function Profile() {
 
   if (!user || loading) return null;
 
-  // Función externa que elimina el usuario
-  const eliminarUsuarioConfirmado = async () => {
-    try {
-      setEliminando(true);
-      await deleteUser(user.id); // Llamada al backend
-      setEliminando(false);
-
-      Alert.alert(
-        "Usuario eliminado",
-        "Tu usuario y toda la información han sido eliminados correctamente.",
-        [
-          {
-            text: "OK",
-            onPress: async () => {
-              // Limpiar token y context
-              await AsyncStorage.removeItem("token");
-              router.replace("/"); // Volver al login/index
-            },
-          },
-        ]
-      );
-    } catch (err) {
-      setEliminando(false);
-      Alert.alert("Error", "No se pudo eliminar el usuario. Intenta nuevamente.");
-      console.error(err);
-    }
-  };
-
-  // Función que muestra la confirmación antes de eliminar
-  const handleEliminarUsuario = () => {
-    console.log("Botón presionado!");
-    Alert.alert(
-      "Confirmar eliminación",
-      "¿Seguro que quieres eliminar tu usuario y toda su información? ¡No se podrá recuperar!",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Aceptar",
-          style: "destructive",
-          onPress: eliminarUsuarioConfirmado, // llama a la función externa
-        },
-      ]
-    );
-  };
-
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
@@ -71,30 +26,30 @@ export default function Profile() {
           </TouchableOpacity>
 
           {/* Botón Eliminar Usuario */}
-         <TouchableOpacity
-  style={styles.deleteButton}
-  onPress={async () => {
-    console.log("Botón presionado!");
-    try {
-    setEliminando(true);
-    await deleteUser(user.id);
-    await AsyncStorage.clear(); // borra todo localmente
-    setEliminando(false);
-    router.replace("/"); // volver al login
-  } catch (err) {
-    setEliminando(false);
-    Alert.alert("Error", "No se pudo eliminar el usuario. Revisa la consola.");
-    console.error(err);
-  }
-  }}
-  disabled={eliminando}
->
-  {eliminando ? (
-    <ActivityIndicator color="#fff" size="small" />
-  ) : (
-    <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>
-  )}
-</TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={async () => {
+              console.log("Botón presionado!");
+              try {
+                setEliminando(true);
+                await deleteUser(user.id);        // Llamada al backend
+                await AsyncStorage.clear();       // Borra TODO lo que haya en local
+                setEliminando(false);
+                router.replace("/");              // Volver al login
+              } catch (err) {
+                setEliminando(false);
+                Alert.alert("Error", "No se pudo eliminar el usuario. Revisa la consola.");
+                console.error(err);
+              }
+            }}
+            disabled={eliminando}
+          >
+            {eliminando ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>
+            )}
+          </TouchableOpacity>
 
         </View>
       </View>
@@ -129,7 +84,7 @@ const styles = StyleSheet.create({
   },
   editButtonText: { color: "#2B6EF2", fontWeight: "600" },
   deleteButton: {
-    backgroundColor: "#FF5C5C", // rojo/naranja
+    backgroundColor: "#FF5C5C",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
