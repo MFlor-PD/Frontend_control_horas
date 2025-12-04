@@ -1,7 +1,24 @@
+// app/(tabs)/historical.tsx
+
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { eliminarFichaje, eliminarTodoHistorial, Fichaje, historialFichajes } from "../../api";
+import {
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  eliminarFichaje,
+  eliminarTodoHistorial,
+  Fichaje,
+  historialFichajes,
+} from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 
 export default function Historical() {
@@ -31,7 +48,7 @@ export default function Historical() {
         agrupado[key].push(f);
       });
 
-      console.log("🔹 Historial actualizado:", list.map(f => f._id));
+      console.log("🔹 Historial actualizado:", list.map((f) => f._id));
       setGrouped(agrupado);
       setSelectedIds([]);
     } catch (error) {
@@ -45,8 +62,6 @@ export default function Historical() {
     );
   };
 
-  // ---------------------------------------------------
-  // Confirmación unificada web / móvil
   const confirmAction = async (message: string) => {
     if (Platform.OS === "web") {
       return window.confirm(message);
@@ -66,13 +81,10 @@ export default function Historical() {
   };
 
   const handleEliminarSeleccionados = async () => {
-    console.log("🔴 BOTÓN ELIMINAR SELECCIONADOS PRESIONADO");
     if (selectedIds.length === 0) return;
-
     const ok = await confirmAction(`¿Deseas eliminar ${selectedIds.length} fichaje(s)?`);
     if (!ok) return;
 
-    console.log("✅ Usuario confirmó eliminación de seleccionados");
     try {
       await Promise.all(selectedIds.map((id) => eliminarFichaje(id)));
       await fetchHistorial();
@@ -82,12 +94,9 @@ export default function Historical() {
   };
 
   const handleEliminarTodo = async () => {
-    console.log("🔴 BOTÓN ELIMINAR TODO PRESIONADO");
-
     const ok = await confirmAction("¿Deseas eliminar todo el historial?");
     if (!ok) return;
 
-    console.log("✅ Usuario confirmó eliminar todo");
     try {
       await eliminarTodoHistorial();
       await fetchHistorial();
@@ -100,6 +109,15 @@ export default function Historical() {
 
   return (
     <ScrollView style={styles.container}>
+      {/* HEADER USUARIO */}
+      <View style={styles.userHeader}>
+        <Image
+          source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
+          style={styles.userAvatar}
+        />
+        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+      </View>
+
       <Text style={styles.title}>Historial de Fichajes</Text>
 
       {Object.keys(grouped).map((dia) => {
@@ -117,20 +135,29 @@ export default function Historical() {
             {grouped[dia].map((f) => {
               const isSelected = selectedIds.includes(f._id);
               return (
-                <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
-                  <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
+                <View
+                  key={f._id}
+                  style={[styles.card, isSelected && styles.cardSelected]}
+                >
+                  <Pressable
+                    style={styles.checkboxContainer}
+                    onPress={() => toggleSelect(f._id)}
+                  >
                     <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
                   </Pressable>
 
                   <View style={styles.cardContent}>
                     <Text style={styles.row}>
-                      <Text style={styles.label}>Entrada: </Text>{f.inicio}
+                      <Text style={styles.label}>Entrada: </Text>
+                      {f.inicio}
                     </Text>
                     <Text style={styles.row}>
-                      <Text style={styles.label}>Salida: </Text>{f.fin || "--"}
+                      <Text style={styles.label}>Salida: </Text>
+                      {f.fin || "--"}
                     </Text>
                     <Text style={styles.row}>
-                      <Text style={styles.label}>Total: </Text>{f.duracionHoras?.toFixed(2) || "0"}h
+                      <Text style={styles.label}>Total: </Text>
+                      {f.duracionHoras?.toFixed(2) || "0"}h
                     </Text>
                   </View>
                 </View>
@@ -142,10 +169,16 @@ export default function Historical() {
 
       {Object.keys(grouped).length > 0 && (
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.button} onPress={handleEliminarSeleccionados}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleEliminarSeleccionados}
+          >
             <Text style={styles.buttonText}>Eliminar seleccionados</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.buttonRed]} onPress={handleEliminarTodo}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonRed]}
+            onPress={handleEliminarTodo}
+          >
             <Text style={styles.buttonText}>Eliminar todo</Text>
           </TouchableOpacity>
         </View>
@@ -155,24 +188,20 @@ export default function Historical() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F3F5F7",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
+  container: { flex: 1, padding: 20, backgroundColor: "#F3F5F7" },
+  userHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 15,
+    gap: 10,
   },
-  dayBlock: {
-    marginBottom: 20,
-  },
-  dayTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
+  userAvatar: { width: 50, height: 50, borderRadius: 25 },
+  userGreeting: { fontSize: 18, fontWeight: "700" },
+
+  title: { fontSize: 22, fontWeight: "700", marginBottom: 15 },
+  dayBlock: { marginBottom: 20 },
+  dayTitle: { fontSize: 18, fontWeight: "600", marginBottom: 10 },
+
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -183,14 +212,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     position: "relative",
   },
-  cardSelected: {
-    borderWidth: 2,
-    borderColor: "#FF3B30",
-  },
-  checkboxContainer: {
-    marginRight: 10,
-    marginTop: 5,
-  },
+  cardSelected: { borderWidth: 2, borderColor: "#FF3B30" },
+  checkboxContainer: { marginRight: 10, marginTop: 5 },
   checkbox: {
     width: 20,
     height: 20,
@@ -199,20 +222,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "white",
   },
-  checkboxSelected: {
-    backgroundColor: "#FF3B30",
-    borderColor: "#FF3B30",
-  },
-  cardContent: {
-    flex: 1,
-  },
-  row: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  label: {
-    fontWeight: "600",
-  },
+  checkboxSelected: { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
+  cardContent: { flex: 1 },
+  row: { fontSize: 16, marginBottom: 5 },
+  label: { fontWeight: "600" },
+
   buttonsContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -227,12 +241,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 5,
   },
-  buttonRed: {
-    backgroundColor: "#FF3B30",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
-  },
+  buttonRed: { backgroundColor: "#FF3B30" },
+  buttonText: { color: "white", fontWeight: "600", fontSize: 14 },
 });

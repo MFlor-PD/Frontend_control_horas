@@ -1,10 +1,9 @@
 // app/(tabs)/clockIn.tsx
 
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getFichajeActual, registrarEntrada, registrarSalida } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 
@@ -45,12 +44,10 @@ export default function ClockIn() {
     );
   };
 
-  // Redirigir si no hay usuario
   useEffect(() => {
     if (!loading && !user) router.replace("/");
   }, [loading, user]);
 
-  // Cargar fichaje activo y totales locales al iniciar
   useEffect(() => {
     if (!user) return;
 
@@ -115,7 +112,6 @@ export default function ClockIn() {
     animateTick();
   }, [seconds]);
 
-  // Guardar totales en AsyncStorage cada vez que cambian
   useEffect(() => {
     AsyncStorage.setItem("horasHoy", horasHoy.toString());
     AsyncStorage.setItem("horasSemana", horasSemana.toString());
@@ -136,24 +132,19 @@ export default function ClockIn() {
 
   const ficharSalida = async () => {
     if (!fichajeId) return;
-
     try {
-  const salidaData = await registrarSalida(fichajeId);
+      const salidaData = await registrarSalida(fichajeId);
+      const duracion: number = salidaData.fichaje.duracionHoras || 0;
 
-  // Duración sacada del fichaje
-  const duracion: number = salidaData.fichaje.duracionHoras || 0;
+      stopInterval();
+      setWorking(false);
+      setFichajeId(null);
+      setSeconds(0);
 
-  stopInterval();
-  setWorking(false);
-  setFichajeId(null);
-  setSeconds(0);
-
-  // Sumar al acumulado local
-  setHorasHoy((prev) => prev + duracion);
-  setHorasSemana((prev) => prev + duracion);
-  setHorasMes((prev) => prev + duracion);
-
-} catch (error) {
+      setHorasHoy((prev) => prev + duracion);
+      setHorasSemana((prev) => prev + duracion);
+      setHorasMes((prev) => prev + duracion);
+    } catch (error) {
       console.error("Error salida:", error);
     }
   };
@@ -176,13 +167,17 @@ export default function ClockIn() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="person-outline" size={20} color="#000" />
-          <Text style={styles.headerText}>Hola, {user.nombre}</Text>
-        </View>
+      {/* HEADER USUARIO: FOTO + NOMBRE */}
+      <View style={styles.userHeader}>
+        <Image
+          source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
+          style={styles.userAvatar}
+        />
+        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+      </View>
 
+      {/* STATUS */}
+      <View style={styles.header}>
         <View style={styles.statusContainer}>
           <View
             style={[
@@ -237,28 +232,31 @@ export default function ClockIn() {
           <Text style={styles.cardTitle}>Horas Hoy</Text>
           <Text style={styles.cardValue}>{horasHoy.toFixed(2)}h</Text>
           <Text style={styles.cardApprox}>
-      aprox. {(horasHoy * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
-    </Text>
+            aprox. {(horasHoy * (user.valorHora || 0)).toFixed(2)}{" "}
+            {user.moneda || "EUR"}
+          </Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Horas Semana</Text>
           <Text style={styles.cardValue}>{horasSemana.toFixed(2)}h</Text>
-           <Text style={styles.cardApprox}>
-      aprox. {(horasSemana * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
-    </Text>
+          <Text style={styles.cardApprox}>
+            aprox. {(horasSemana * (user.valorHora || 0)).toFixed(2)}{" "}
+            {user.moneda || "EUR"}
+          </Text>
         </View>
 
         <View style={styles.cardLarge}>
           <Text style={styles.cardTitle}>Horas Mes</Text>
           <Text style={styles.cardValue}>{horasMes.toFixed(2)}h</Text>
-           <Text style={styles.cardApprox}>
-      aprox. {(horasMes * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
-    </Text>
+          <Text style={styles.cardApprox}>
+            aprox. {(horasMes * (user.valorHora || 0)).toFixed(2)}{" "}
+            {user.moneda || "EUR"}
+          </Text>
         </View>
       </View>
 
-      {/* 🔄 BOTÓN RESET TOTALES — ABAJO */}
+      {/* BOTÓN RESET */}
       <View style={{ alignItems: "center", marginTop: 25 }}>
         <TouchableOpacity
           onPress={resetTotales}
@@ -319,11 +317,14 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: "#555", fontSize: 15, fontWeight: "500" },
   cardValue: { fontSize: 28, fontWeight: "700", marginTop: 5 },
+  cardApprox: { marginTop: 5, fontSize: 14, color: "#777", fontWeight: "500" },
 
-  cardApprox: {
-  marginTop: 5,
-  fontSize: 14,
-  color: "#777",
-  fontWeight: "500",
-}
+  userHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    gap: 10,
+  },
+  userAvatar: { width: 50, height: 50, borderRadius: 25 },
+  userGreeting: { fontSize: 18, fontWeight: "700" },
 });
