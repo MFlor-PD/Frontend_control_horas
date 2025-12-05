@@ -1,5 +1,4 @@
-
-// app/editProfile.tsx
+// app/profileEdit.tsx
 
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -24,7 +23,7 @@ const DEFAULT_ICON = "https://i.pravatar.cc/150";
 export default function EditProfile() {
   const { user, loading, updateUser } = useContext(AuthContext);
   const router = useRouter();
-  const { pickImage } = useProfilePhoto();
+  const { pickImage, setLocalNombre } = useProfilePhoto();
 
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -65,6 +64,7 @@ export default function EditProfile() {
     await updateUser({ ...user, foto: uri });
   };
 
+  // Guardar cambios en contexto y AsyncStorage
   const handleSaveLocal = async () => {
     const updatedUser = {
       ...user,
@@ -74,7 +74,10 @@ export default function EditProfile() {
       valorHora: parseFloat(valorHora),
       moneda,
     };
-    await updateUser(updatedUser);
+
+    await updateUser(updatedUser);  // actualiza contexto en tiempo real
+    await setLocalNombre(nombre);   // persiste en AsyncStorage
+
     Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
     router.replace("/(tabs)/profile");
   };
@@ -109,18 +112,21 @@ export default function EditProfile() {
           </TouchableOpacity>
 
           <TextInput
-  style={styles.input}
-  placeholder="URL de la foto"
-  value={foto}
-  onChangeText={(uri) => setFoto(uri)} // solo cambia UI
-  onBlur={async () => { 
-    if (user) await updateUser({ ...user, foto }); // persiste al salir del input
-  }}
-/>
-
+            style={styles.input}
+            placeholder="URL de la foto"
+            value={foto}
+            onChangeText={(uri) => setFoto(uri)}
+            onBlur={async () => { 
+              if (user) await updateUser({ ...user, foto });
+            }}
+          />
 
           <Text style={styles.label}>Nombre</Text>
-          <TextInput style={styles.input} value={nombre} onChangeText={setNombre} />
+          <TextInput
+            style={styles.input}
+            value={nombre}
+            onChangeText={setNombre}
+          />
 
           <Text style={styles.label}>Email</Text>
           <TextInput
