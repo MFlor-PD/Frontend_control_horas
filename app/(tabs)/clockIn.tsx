@@ -1,6 +1,5 @@
-// app/(tabs)/clockIn.tsx
+//raiz/ app/(tabs)/clockIn.tsx
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -8,24 +7,22 @@ import { getFichajeActual, registrarEntrada, registrarSalida } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 
+const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function ClockIn() {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, updateUser } = useContext(AuthContext);
   const router = useRouter();
 
   const [working, setWorking] = useState(false);
   const [fichajeId, setFichajeId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
-
   const intervalRef = useRef<number | null>(null);
-
   const [horasHoy, setHorasHoy] = useState(0);
   const [horasSemana, setHorasSemana] = useState(0);
   const [horasMes, setHorasMes] = useState(0);
 
   const animatedValue = useRef(new Animated.Value(0)).current;
   const { pickImage } = useProfilePhoto();
-
 
   const animateTick = () => {
     Animated.timing(animatedValue, {
@@ -39,13 +36,7 @@ export default function ClockIn() {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    return (
-      String(h).padStart(2, "0") +
-      ":" +
-      String(m).padStart(2, "0") +
-      ":" +
-      String(s).padStart(2, "0")
-    );
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
   useEffect(() => {
@@ -64,7 +55,6 @@ export default function ClockIn() {
 
           const inicio = data.fichajeEnCurso.inicio;
           const fecha = data.fichajeEnCurso.fecha;
-
           const inicioDate = new Date(fecha);
           const [h, m] = inicio.split(":");
           inicioDate.setHours(Number(h), Number(m), 0, 0);
@@ -80,29 +70,12 @@ export default function ClockIn() {
       }
     };
 
-    const loadLocalTotals = async () => {
-      try {
-        const hoy = await AsyncStorage.getItem("horasHoy");
-        const semana = await AsyncStorage.getItem("horasSemana");
-        const mes = await AsyncStorage.getItem("horasMes");
-
-        if (hoy) setHorasHoy(Number(hoy));
-        if (semana) setHorasSemana(Number(semana));
-        if (mes) setHorasMes(Number(mes));
-      } catch (err) {
-        console.error("Error cargando totales locales:", err);
-      }
-    };
-
     fetchActivo();
-    loadLocalTotals();
   }, [user]);
 
   const startInterval = () => {
     if (intervalRef.current !== null) return;
-    intervalRef.current = setInterval(() => {
-      setSeconds((s) => s + 1);
-    }, 1000) as unknown as number;
+    intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000) as unknown as number;
   };
 
   const stopInterval = () => {
@@ -115,12 +88,6 @@ export default function ClockIn() {
   useEffect(() => {
     animateTick();
   }, [seconds]);
-
-  useEffect(() => {
-    AsyncStorage.setItem("horasHoy", horasHoy.toString());
-    AsyncStorage.setItem("horasSemana", horasSemana.toString());
-    AsyncStorage.setItem("horasMes", horasMes.toString());
-  }, [horasHoy, horasSemana, horasMes]);
 
   const ficharEntrada = async () => {
     try {
@@ -157,47 +124,37 @@ export default function ClockIn() {
     working ? ficharSalida() : ficharEntrada();
   };
 
-  const resetTotales = async () => {
+  const resetTotales = () => {
     setHorasHoy(0);
     setHorasSemana(0);
     setHorasMes(0);
+  };
 
-    await AsyncStorage.removeItem("horasHoy");
-    await AsyncStorage.removeItem("horasSemana");
-    await AsyncStorage.removeItem("horasMes");
+  const handlePickPhoto = async () => {
+    const uri = await pickImage();
+    if (uri && user) {
+      updateUser({ ...user, foto: uri }); // persistencia en AsyncStorage vía hook
+    }
   };
 
   if (loading || !user) return null;
 
   return (
     <View style={styles.container}>
-      {/* HEADER USUARIO: FOTO + NOMBRE */}
-      <TouchableOpacity style={styles.userHeader} onPress={pickImage}>
-  <Image
-    source={{ uri: user.foto || "https://i.pravatar.cc/150" }}
-    style={styles.userAvatar}
-  />
-  <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
-</TouchableOpacity>
+      <TouchableOpacity style={styles.userHeader} onPress={handlePickPhoto}>
+        <Image source={{ uri: user.foto || DEFAULT_ICON }} style={styles.userAvatar} />
+        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+      </TouchableOpacity>
 
-      {/* STATUS */}
       <View style={styles.header}>
         <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: working ? "green" : "gray" },
-            ]}
-          />
-          <Text
-            style={[styles.statusText, { color: working ? "green" : "gray" }]}
-          >
+          <View style={[styles.statusDot, { backgroundColor: working ? "green" : "gray" }]} />
+          <Text style={[styles.statusText, { color: working ? "green" : "gray" }]}>
             {working ? "Trabajando" : "Fuera de turno"}
           </Text>
         </View>
       </View>
 
-      {/* CRONÓMETRO */}
       {working && (
         <Animated.Text
           style={{
@@ -205,39 +162,28 @@ export default function ClockIn() {
             fontWeight: "bold",
             textAlign: "center",
             marginBottom: 10,
-            opacity: animatedValue.interpolate({
-              inputRange: [seconds - 1, seconds],
-              outputRange: [0.4, 1],
-            }),
+            opacity: animatedValue.interpolate({ inputRange: [seconds - 1, seconds], outputRange: [0.4, 1] }),
           }}
         >
           {formatHHMMSS(seconds)}
         </Animated.Text>
       )}
 
-      {/* BOTÓN PRINCIPAL */}
       <View style={styles.buttonWrapper}>
         <TouchableOpacity
-          style={[
-            styles.mainButton,
-            { backgroundColor: working ? "green" : "#FF4D4D" },
-          ]}
+          style={[styles.mainButton, { backgroundColor: working ? "green" : "#FF4D4D" }]}
           onPress={handlePress}
         >
-          <Text style={styles.buttonText}>
-            {working ? "FICHAR SALIDA" : "FICHAR ENTRADA"}
-          </Text>
+          <Text style={styles.buttonText}>{working ? "FICHAR SALIDA" : "FICHAR ENTRADA"}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* TARJETAS */}
       <View style={styles.cardsContainer}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Horas Hoy</Text>
           <Text style={styles.cardValue}>{horasHoy.toFixed(2)}h</Text>
           <Text style={styles.cardApprox}>
-            aprox. {(horasHoy * (user.valorHora || 0)).toFixed(2)}{" "}
-            {user.moneda || "EUR"}
+            aprox. {(horasHoy * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
           </Text>
         </View>
 
@@ -245,8 +191,7 @@ export default function ClockIn() {
           <Text style={styles.cardTitle}>Horas Semana</Text>
           <Text style={styles.cardValue}>{horasSemana.toFixed(2)}h</Text>
           <Text style={styles.cardApprox}>
-            aprox. {(horasSemana * (user.valorHora || 0)).toFixed(2)}{" "}
-            {user.moneda || "EUR"}
+            aprox. {(horasSemana * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
           </Text>
         </View>
 
@@ -254,26 +199,14 @@ export default function ClockIn() {
           <Text style={styles.cardTitle}>Horas Mes</Text>
           <Text style={styles.cardValue}>{horasMes.toFixed(2)}h</Text>
           <Text style={styles.cardApprox}>
-            aprox. {(horasMes * (user.valorHora || 0)).toFixed(2)}{" "}
-            {user.moneda || "EUR"}
+            aprox. {(horasMes * (user.valorHora || 0)).toFixed(2)} {user.moneda || "EUR"}
           </Text>
         </View>
       </View>
 
-      {/* BOTÓN RESET */}
       <View style={{ alignItems: "center", marginTop: 25 }}>
-        <TouchableOpacity
-          onPress={resetTotales}
-          style={{
-            paddingVertical: 10,
-            paddingHorizontal: 20,
-            backgroundColor: "#888",
-            borderRadius: 30,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>
-            Reset
-          </Text>
+        <TouchableOpacity onPress={resetTotales} style={{ paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "#888", borderRadius: 30 }}>
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>Reset</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -282,53 +215,20 @@ export default function ClockIn() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F3F5F7" },
-
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 25,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
-  headerText: { fontSize: 16, fontWeight: "600" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 25 },
   statusContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
   statusDot: { width: 10, height: 10, borderRadius: 50 },
   statusText: { fontWeight: "600" },
-
   buttonWrapper: { alignItems: "center", marginBottom: 10 },
-  mainButton: {
-    paddingVertical: 16,
-    borderRadius: 50,
-    width: "80%",
-    alignItems: "center",
-  },
+  mainButton: { paddingVertical: 16, borderRadius: 50, width: "80%", alignItems: "center" },
   buttonText: { color: "white", fontSize: 18, fontWeight: "600" },
-
   cardsContainer: { alignItems: "center", gap: 20 },
-  card: {
-    width: "90%",
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 16,
-    elevation: 3,
-  },
-  cardLarge: {
-    width: "90%",
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 16,
-    elevation: 3,
-  },
+  card: { width: "90%", backgroundColor: "white", padding: 20, borderRadius: 16, elevation: 3 },
+  cardLarge: { width: "90%", backgroundColor: "white", padding: 20, borderRadius: 16, elevation: 3 },
   cardTitle: { color: "#555", fontSize: 15, fontWeight: "500" },
   cardValue: { fontSize: 28, fontWeight: "700", marginTop: 5 },
   cardApprox: { marginTop: 5, fontSize: 14, color: "#777", fontWeight: "500" },
-
-  userHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-    gap: 10,
-  },
+  userHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15, gap: 10 },
   userAvatar: { width: 50, height: 50, borderRadius: 25 },
   userGreeting: { fontSize: 18, fontWeight: "700" },
 });

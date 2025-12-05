@@ -1,3 +1,6 @@
+
+// app/editProfile.tsx
+
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
@@ -16,6 +19,8 @@ import {
 import { AuthContext } from "../context/AuthContext";
 import { useProfilePhoto } from "../hooks/useProfilePhoto";
 
+const DEFAULT_ICON = "https://i.pravatar.cc/150";
+
 export default function EditProfile() {
   const { user, loading, updateUser } = useContext(AuthContext);
   const router = useRouter();
@@ -23,7 +28,7 @@ export default function EditProfile() {
 
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
-  const [foto, setFoto] = useState("");
+  const [foto, setFoto] = useState(DEFAULT_ICON);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [valorHora, setValorHora] = useState("0.00");
@@ -41,20 +46,24 @@ export default function EditProfile() {
   const [nuevaDenominacion, setNuevaDenominacion] = useState("");
   const [nuevoNombre, setNuevoNombre] = useState("");
 
+  // Inicializar estado desde contexto
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/"); 
-    } else if (user) {
+    if (!loading && !user) router.replace("/");
+    else if (user) {
       setNombre(user.nombre || "");
       setEmail(user.email || "");
-      setFoto(user.foto || "");
+      setFoto(user.foto || DEFAULT_ICON);
       setValorHora(user.valorHora?.toString() || "0.00");
       setMoneda(user.moneda || "EUR - Euro");
       setMonedaDefault(false);
     }
   }, [user, loading]);
 
-  if (!user || loading) return null;
+  // Función para actualizar foto de perfil en contexto y UI
+  const handleSetPhoto = async (uri: string) => {
+    setFoto(uri);
+    await updateUser({ ...user, foto: uri });
+  };
 
   const handleSaveLocal = async () => {
     const updatedUser = {
@@ -66,7 +75,7 @@ export default function EditProfile() {
       moneda,
     };
     await updateUser(updatedUser);
-    Alert.alert("Perfil actualizado", "Los cambios se han guardado localmente.");
+    Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
     router.replace("/(tabs)/profile");
   };
 
@@ -75,7 +84,8 @@ export default function EditProfile() {
       Alert.alert("Error", "Debe completar ambos campos");
       return;
     }
-    setMonedasLocales([...monedasLocales, { denominacion: nuevaDenominacion, nombre: nuevoNombre }]);
+    const nuevaMoneda = { denominacion: nuevaDenominacion, nombre: nuevoNombre };
+    setMonedasLocales([...monedasLocales, nuevaMoneda]);
     setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
     setNuevaDenominacion("");
     setNuevoNombre("");
@@ -89,24 +99,36 @@ export default function EditProfile() {
 
         <View style={styles.card}>
           {/* Imagen dinámica */}
-          <TouchableOpacity onPress={async () => {
-            const uri = await pickImage();
-            if(uri) setFoto(uri);
-          }}>
-            <Image source={{ uri: foto || "https://i.pravatar.cc/150" }} style={styles.avatar} />
+          <TouchableOpacity
+            onPress={async () => {
+              const uri = await pickImage();
+              if (uri) handleSetPhoto(uri);
+            }}
+          >
+            <Image source={{ uri: foto || DEFAULT_ICON }} style={styles.avatar} />
           </TouchableOpacity>
+
           <TextInput
-            style={styles.input}
-            placeholder="URL de la foto"
-            value={foto}
-            onChangeText={setFoto}
-          />
+  style={styles.input}
+  placeholder="URL de la foto"
+  value={foto}
+  onChangeText={(uri) => setFoto(uri)} // solo cambia UI
+  onBlur={async () => { 
+    if (user) await updateUser({ ...user, foto }); // persiste al salir del input
+  }}
+/>
+
 
           <Text style={styles.label}>Nombre</Text>
           <TextInput style={styles.input} value={nombre} onChangeText={setNombre} />
 
           <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+          />
 
           <Text style={styles.label}>Contraseña</Text>
           <View style={styles.passwordContainer}>
@@ -117,13 +139,25 @@ export default function EditProfile() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#555" />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off" : "eye"}
+                size={20}
+                color="#555"
+              />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.label}>Valor Hora</Text>
-          <TextInput style={styles.input} value={valorHora} onChangeText={setValorHora} keyboardType="numeric" />
+          <TextInput
+            style={styles.input}
+            value={valorHora}
+            onChangeText={setValorHora}
+            keyboardType="numeric"
+          />
 
           <Text style={styles.label}>Moneda</Text>
           <View style={styles.pickerContainer}>
@@ -140,22 +174,43 @@ export default function EditProfile() {
 
           <View style={styles.defaultCurrencyContainer}>
             <Switch value={monedaDefault} onValueChange={setMonedaDefault} />
-            <Text style={styles.defaultCurrencyLabel}>Usar como moneda por defecto</Text>
+            <Text style={styles.defaultCurrencyLabel}>
+              Usar como moneda por defecto
+            </Text>
 
-            <TouchableOpacity style={styles.addCurrencyButton} onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}>
+            <TouchableOpacity
+              style={styles.addCurrencyButton}
+              onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}
+            >
               <Text style={styles.addCurrencyButtonText}>Agregar nueva moneda</Text>
             </TouchableOpacity>
           </View>
 
           {showNuevaMoneda && (
             <View style={styles.nuevaMonedaCard}>
-              <TextInput style={styles.input} placeholder="Denominación ej: USD" value={nuevaDenominacion} onChangeText={setNuevaDenominacion} />
-              <TextInput style={styles.input} placeholder="Nombre ej: Dólar estadounidense" value={nuevoNombre} onChangeText={setNuevoNombre} />
+              <TextInput
+                style={styles.input}
+                placeholder="Denominación ej: USD"
+                value={nuevaDenominacion}
+                onChangeText={setNuevaDenominacion}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre ej: Dólar estadounidense"
+                value={nuevoNombre}
+                onChangeText={setNuevoNombre}
+              />
               <View style={styles.buttonsRow}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleAgregarMoneda}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleAgregarMoneda}
+                >
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowNuevaMoneda(false)}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowNuevaMoneda(false)}
+                >
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
@@ -164,15 +219,20 @@ export default function EditProfile() {
         </View>
 
         <View style={styles.buttonsRow}>
-          <TouchableOpacity style={[styles.saveButton, { flex: 1, marginRight: 5 }]} onPress={handleSaveLocal}>
+          <TouchableOpacity
+            style={[styles.saveButton, { flex: 1, marginRight: 5 }]}
+            onPress={handleSaveLocal}
+          >
             <Text style={styles.saveButtonText}>Guardar Cambios</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]} onPress={() => router.replace("/(tabs)/profile")}>
+          <TouchableOpacity
+            style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]}
+            onPress={() => router.replace("/(tabs)/profile")}
+          >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-
       </View>
     </ScrollView>
   );

@@ -1,14 +1,35 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
+
+// app/(tabs)/profile.tsx
 import { useRouter } from "expo-router";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { deleteUser } from "../../api";
+import MonthlyEarningsCard from "../../component/monthlyEarningCard";
 import { AuthContext } from "../../context/AuthContext";
+import { useProfilePhoto } from "../../hooks/useProfilePhoto";
+
+const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function Profile() {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, updateUser } = useContext(AuthContext);
   const router = useRouter();
   const [eliminando, setEliminando] = useState(false);
+  const { pickImage } = useProfilePhoto();
+  const [foto, setFoto] = useState(DEFAULT_ICON);
+  const [nombre, setNombre] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setFoto(user.foto || DEFAULT_ICON);
+      setNombre(user.nombre || "");
+    }
+  }, [user]);
+
+  const handleSetPhoto = async (uri: string) => {
+    setFoto(uri);
+    if (user) await updateUser({ ...user, foto: uri }); // persistencia en AsyncStorage
+  };
 
   if (!user || loading) return null;
 
@@ -16,42 +37,37 @@ export default function Profile() {
     <ScrollView style={styles.page}>
       <View style={styles.container}>
         <View style={styles.card}>
-          <Image source={{ uri: user.foto || "https://i.pravatar.cc/150" }} style={styles.avatar} />
-          <Text style={styles.userName}>{user.nombre}</Text>
+          <TouchableOpacity onPress={async () => {
+            const uri = await pickImage();
+            if (uri) handleSetPhoto(uri);
+          }}>
+            <Image source={{ uri: foto || DEFAULT_ICON }} style={styles.avatar} />
+          </TouchableOpacity>
+
+          <Text style={styles.userName}>{nombre}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
 
-          {/* Botón Editar */}
           <TouchableOpacity style={styles.editButton} onPress={() => router.push("/profileEdit")}>
             <Text style={styles.editButtonText}>Editar Perfil</Text>
           </TouchableOpacity>
 
-          {/* Botón Eliminar Usuario */}
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={async () => {
-              console.log("Botón presionado!");
-              try {
-                setEliminando(true);
-                await deleteUser(user.id);        // Llamada al backend
-                await AsyncStorage.clear();       // Borra TODO lo que haya en local
-                setEliminando(false);
-                router.replace("/");              // Volver al login
-              } catch (err) {
-                setEliminando(false);
-                Alert.alert("Error", "No se pudo eliminar el usuario. Revisa la consola.");
-                console.error(err);
-              }
-            }}
-            disabled={eliminando}
-          >
-            {eliminando ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>
-            )}
+          <TouchableOpacity style={styles.deleteButton} onPress={async () => {
+            try {
+              setEliminando(true);
+              await deleteUser(user.id);
+              setEliminando(false);
+              router.replace("/");
+            } catch (err) {
+              setEliminando(false);
+              Alert.alert("Error", "No se pudo eliminar el usuario.");
+              console.error(err);
+            }
+          }} disabled={eliminando}>
+            {eliminando ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>}
           </TouchableOpacity>
-
         </View>
+
+        <MonthlyEarningsCard />
       </View>
     </ScrollView>
   );
@@ -60,36 +76,12 @@ export default function Profile() {
 const styles = StyleSheet.create({
   page: { backgroundColor: "#F6F7FB" },
   container: { padding: 20 },
-  card: {
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 20,
-    alignItems: "center",
-  },
+  card: { backgroundColor: "#FFF", padding: 20, borderRadius: 15, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, elevation: 3, marginBottom: 20, alignItems: "center" },
   avatar: { width: 70, height: 70, borderRadius: 35, marginBottom: 10 },
   userName: { fontSize: 18, fontWeight: "700", color: "#000", marginBottom: 5 },
   userEmail: { color: "#666", marginBottom: 15 },
-  editButton: {
-    backgroundColor: "#E4ECFF",
-    paddingVertical: 10,
-    borderRadius: 10,
-    width: "60%",
-    alignItems: "center",
-    marginBottom: 15,
-  },
+  editButton: { backgroundColor: "#E4ECFF", paddingVertical: 10, borderRadius: 10, width: "60%", alignItems: "center", marginBottom: 15 },
   editButtonText: { color: "#2B6EF2", fontWeight: "600" },
-  deleteButton: {
-    backgroundColor: "#FF5C5C",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignSelf: "flex-end",
-    marginTop: 10,
-  },
+  deleteButton: { backgroundColor: "#FF5C5C", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, alignSelf: "flex-end", marginTop: 10 },
   deleteButtonText: { color: "#FFF", fontWeight: "600", fontSize: 12 },
 });
