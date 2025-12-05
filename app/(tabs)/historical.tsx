@@ -9,7 +9,7 @@ import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function Historical() {
-  const { user, loading, updateUser } = useContext(AuthContext);
+  const { user, loading, updateUserProfile } = useContext(AuthContext);
   const router = useRouter();
 
   const [grouped, setGrouped] = useState<{ [key: string]: Fichaje[] }>({});
@@ -103,7 +103,7 @@ export default function Historical() {
         style={styles.userHeader}
         onPress={async () => {
           const uri = await pickImage();
-          if (uri && user) await updateUser({ ...user, foto: uri });
+          if (uri && user) await updateUserProfile({ ...user, foto: uri });
         }}
       >
         <Image source={{ uri: user.foto || DEFAULT_ICON }} style={styles.userAvatar} />

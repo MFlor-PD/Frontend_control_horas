@@ -1,6 +1,6 @@
 // app/profileEdit.tsx
-
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
@@ -18,10 +18,11 @@ import {
 import { AuthContext } from "../context/AuthContext";
 import { useProfilePhoto } from "../hooks/useProfilePhoto";
 
+
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function EditProfile() {
-  const { user, loading, updateUser } = useContext(AuthContext);
+  const { user, loading, logout, updateUserProfile, updateUser } = useContext(AuthContext);
   const router = useRouter();
   const { pickImage, setLocalNombre } = useProfilePhoto();
 
@@ -45,7 +46,6 @@ export default function EditProfile() {
   const [nuevaDenominacion, setNuevaDenominacion] = useState("");
   const [nuevoNombre, setNuevoNombre] = useState("");
 
-  // Inicializar estado desde contexto
   useEffect(() => {
     if (!loading && !user) router.replace("/");
     else if (user) {
@@ -53,33 +53,61 @@ export default function EditProfile() {
       setEmail(user.email || "");
       setFoto(user.foto || DEFAULT_ICON);
       setValorHora(user.valorHora?.toString() || "0.00");
-      setMoneda(user.moneda || "EUR - Euro");
+      setMoneda("EUR - Euro");
       setMonedaDefault(false);
     }
   }, [user, loading]);
 
-  // Función para actualizar foto de perfil en contexto y UI
   const handleSetPhoto = async (uri: string) => {
     setFoto(uri);
-    await updateUser({ ...user, foto: uri });
+    await updateUser({ foto: uri }); // ✅ solo local
   };
 
-  // Guardar cambios en contexto y AsyncStorage
-  const handleSaveLocal = async () => {
-    const updatedUser = {
-      ...user,
-      nombre,
-      email,
-      foto,
-      valorHora: parseFloat(valorHora),
-      moneda,
-    };
+  const handleSave = async () => {
+    if (!user) return;
 
-    await updateUser(updatedUser);  // actualiza contexto en tiempo real
-    await setLocalNombre(nombre);   // persiste en AsyncStorage
+    try {
+      const emailAnterior = user.email;
 
-    Alert.alert("Perfil actualizado", "Los cambios se han guardado correctamente.");
-    router.replace("/(tabs)/profile");
+      // --- 1️⃣ Actualiza backend para email, password y valorHora ---
+      await updateUserProfile({
+        email,
+        password: password || undefined,
+        valorHora: parseFloat(valorHora),
+      });
+
+      // --- 2️⃣ Actualiza solo datos locales ---
+      await updateUser({ nombre, foto });
+      await setLocalNombre(nombre);
+      await AsyncStorage.setItem("moneda", moneda);
+
+      // --- 3️⃣ Determina si necesita relogin ---
+      const needsRelogin = email !== emailAnterior || password;
+
+      if (needsRelogin) {
+        // Limpiar token/contexto ANTES del Alert
+        await logout();
+
+        Alert.alert(
+          "Perfil actualizado",
+          "Por seguridad, debes iniciar sesión nuevamente con tu nuevo email/contraseña.",
+          [
+            {
+              text: "Aceptar",
+              onPress: () => router.replace("/"), // login
+            },
+          ]
+        );
+        return;
+      }
+
+      // --- 4️⃣ Cambios locales y valorHora se guardaron correctamente ---
+      Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
+      router.replace("/(tabs)/profile");
+    } catch (err: any) {
+      console.error("❌ ERROR:", err);
+      Alert.alert("Error", err.message || "Error al guardar los cambios");
+    }
   };
 
   const handleAgregarMoneda = () => {
@@ -95,13 +123,14 @@ export default function EditProfile() {
     setShowNuevaMoneda(false);
   };
 
+  if (!user || loading) return null;
+
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
         <Text style={styles.headerTitle}>Editar Perfil</Text>
 
         <View style={styles.card}>
-          {/* Imagen dinámica */}
           <TouchableOpacity
             onPress={async () => {
               const uri = await pickImage();
@@ -115,18 +144,12 @@ export default function EditProfile() {
             style={styles.input}
             placeholder="URL de la foto"
             value={foto}
-            onChangeText={(uri) => setFoto(uri)}
-            onBlur={async () => { 
-              if (user) await updateUser({ ...user, foto });
-            }}
+            onChangeText={setFoto}
+            onBlur={async () => { if (user) await updateUser({ foto }); }} // ✅ solo local
           />
 
           <Text style={styles.label}>Nombre</Text>
-          <TextInput
-            style={styles.input}
-            value={nombre}
-            onChangeText={setNombre}
-          />
+          <TextInput style={styles.input} value={nombre} onChangeText={setNombre} />
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -145,15 +168,8 @@ export default function EditProfile() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeButton}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={20}
-                color="#555"
-              />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+              <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#555" />
             </TouchableOpacity>
           </View>
 
@@ -180,14 +196,9 @@ export default function EditProfile() {
 
           <View style={styles.defaultCurrencyContainer}>
             <Switch value={monedaDefault} onValueChange={setMonedaDefault} />
-            <Text style={styles.defaultCurrencyLabel}>
-              Usar como moneda por defecto
-            </Text>
+            <Text style={styles.defaultCurrencyLabel}>Usar como moneda por defecto</Text>
 
-            <TouchableOpacity
-              style={styles.addCurrencyButton}
-              onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}
-            >
+            <TouchableOpacity style={styles.addCurrencyButton} onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}>
               <Text style={styles.addCurrencyButtonText}>Agregar nueva moneda</Text>
             </TouchableOpacity>
           </View>
@@ -207,16 +218,10 @@ export default function EditProfile() {
                 onChangeText={setNuevoNombre}
               />
               <View style={styles.buttonsRow}>
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleAgregarMoneda}
-                >
+                <TouchableOpacity style={styles.saveButton} onPress={handleAgregarMoneda}>
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setShowNuevaMoneda(false)}
-                >
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowNuevaMoneda(false)}>
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
@@ -225,17 +230,11 @@ export default function EditProfile() {
         </View>
 
         <View style={styles.buttonsRow}>
-          <TouchableOpacity
-            style={[styles.saveButton, { flex: 1, marginRight: 5 }]}
-            onPress={handleSaveLocal}
-          >
+          <TouchableOpacity style={[styles.saveButton, { flex: 1, marginRight: 5 }]} onPress={handleSave}>
             <Text style={styles.saveButtonText}>Guardar Cambios</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]}
-            onPress={() => router.replace("/(tabs)/profile")}
-          >
+          <TouchableOpacity style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]} onPress={() => router.replace("/(tabs)/profile")}>
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
@@ -244,6 +243,7 @@ export default function EditProfile() {
   );
 }
 
+// --- Styles (igual que antes) ---
 const styles = StyleSheet.create({
   page: { backgroundColor: "#F6F7FB" },
   container: { padding: 20 },

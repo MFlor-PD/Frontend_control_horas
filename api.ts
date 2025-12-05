@@ -4,13 +4,21 @@ import axios from "axios";
 
 const API_URL = "http://localhost:4000/api";
 
-// Tipos
+// ---------------------- TIPOS ---------------------- //
 export interface User {
   id: string;
   nombre: string;
   email: string;
   valorHora: number;
   foto?: string;
+  password?: string;
+}
+
+export interface UpdateProfileResponse {
+  user: User;
+  token?: string;
+  passwordChanged: boolean;
+  emailChanged: boolean;
 }
 
 export interface Fichaje {
@@ -24,7 +32,7 @@ export interface Fichaje {
   extra?: boolean;
 }
 
-// Axios instance
+// ---------------------- AXIOS ---------------------- //
 const axiosInstance = axios.create({
   baseURL: API_URL,
 });
@@ -70,11 +78,20 @@ export const updateProfile = async (
     valorHora?: number;
     moneda?: string;
   }
-) => {
+): Promise<UpdateProfileResponse> => {
   const res = await axiosInstance.put(`/users/me/${userId}`, data);
-  return res.data as User;
+  return res.data as UpdateProfileResponse;
 };
 
+export const deleteUser = async (userId: string) => {
+  try {
+    const res = await axiosInstance.delete(`/users/me/${userId}`);
+    return res.data;
+  } catch (error: any) {
+    console.error("❌ Error eliminando usuario:", error.response?.data || error.message);
+    throw error;
+  }
+};
 
 // ---------------------- FICHAJES ---------------------- //
 export const registrarEntrada = async () => {
@@ -97,8 +114,6 @@ export const historialFichajes = async () => {
   return res.data as { historial: Fichaje[]; totales: { semana: number; mes: number } };
 };
 
-// ---------------------- NUEVO ENDPOINT ---------------------- //
-// Obtener fichaje en curso
 export const getFichajeActual = async () => {
   try {
     const res = await axiosInstance.get("/fichajes/actual");
@@ -109,15 +124,9 @@ export const getFichajeActual = async () => {
   }
 };
 
-
-// ---------------------- NUEVO ENDPOINT eliminar fichajes---------------------- //
-
-
 export const eliminarFichaje = async (fichajeId: string) => {
-  //console.log("📡 Llamando API eliminar:", fichajeId);
   try {
     const res = await axiosInstance.delete(`/fichajes/eliminar/${fichajeId}`);
-    console.log("✅ Respuesta:", res.data);
     return res.data;
   } catch (error: any) {
     console.error("❌ Error eliminando:", error.response?.data || error.message);
@@ -125,28 +134,12 @@ export const eliminarFichaje = async (fichajeId: string) => {
   }
 };
 
-// Eliminar todo el historial
 export const eliminarTodoHistorial = async () => {
-  //console.log("📡 Llamando API eliminar todo");
   try {
     const res = await axiosInstance.delete("/fichajes/eliminar-historial");
-    console.log("✅ Respuesta:", res.data);
     return res.data;
   } catch (error: any) {
     console.error("❌ Error eliminando todo:", error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// ---------------------- NUEVO ENDPOINT eliminar usuario ---------------------- //
-export const deleteUser = async (userId: string) => {
-  try {
-    console.log("Llamando API para eliminar usuario:", userId);
-    const res = await axiosInstance.delete(`/users/me/${userId}`);
-    console.log("✅ Usuario eliminado:", res.data);
-    return res.data;
-  } catch (error: any) {
-    console.error("❌ Error eliminando usuario:", error.response?.data || error.message);
     throw error;
   }
 };
