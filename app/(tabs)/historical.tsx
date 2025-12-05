@@ -1,9 +1,8 @@
-//raiz/app/(tabs)/historical.tsx
-
+// /raiz/app/(tabs)/historical.tsx
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { eliminarFichaje, eliminarTodoHistorial, Fichaje, historialFichajes } from "../../api";
+import { eliminarFichaje, eliminarTodoHistorial, Fichaje, historialFichajes, marcarExtra } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 
@@ -42,6 +41,21 @@ export default function Historical() {
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
+
+  const toggleExtra = async (f: Fichaje) => {
+  try {
+    const data = await marcarExtra(f._id, !f.extra); // toggle
+    setGrouped(prev => {
+      const key = new Date(f.fecha).toISOString().split("T")[0];
+      return {
+        ...prev,
+        [key]: prev[key].map(item => item._id === f._id ? data.fichaje : item),
+      };
+    });
+  } catch (err) {
+    console.error("Error toggle extra:", err);
+  }
+};
 
   const confirmAction = async (message: string) => {
     if (Platform.OS === "web") return window.confirm(message);
@@ -115,6 +129,11 @@ export default function Historical() {
                     <Text style={styles.row}><Text style={styles.label}>Salida: </Text>{f.fin || "--"}</Text>
                     <Text style={styles.row}><Text style={styles.label}>Total: </Text>{f.duracionHoras?.toFixed(2) || "0"}h</Text>
                   </View>
+                  {/* Checkbox extra */}
+                  <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
+                    <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
+                    <Text style={styles.extraLabel}>Extra</Text>
+                  </Pressable>
                 </View>
               );
             })}
@@ -152,6 +171,8 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   row: { fontSize: 16, marginBottom: 5 },
   label: { fontWeight: "600" },
+  extraContainer: { flexDirection: "row", alignItems: "center", marginTop: 5, gap: 5 },
+  extraLabel: { fontSize: 14, fontWeight: "600" },
   buttonsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, marginBottom: 30 },
   button: { backgroundColor: "#FF9500", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", marginHorizontal: 5 },
   buttonRed: { backgroundColor: "#FF3B30" },

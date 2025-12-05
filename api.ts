@@ -87,8 +87,8 @@ export const registrarSalida = async (fichajeId: string) => {
   return res.data as { message: string; fichaje: Fichaje };
 };
 
-export const marcarExtra = async (fichajeId: string) => {
-  const res = await axiosInstance.put(`/fichajes/extra/${fichajeId}`);
+export const marcarExtra = async (fichajeId: string, extra: boolean) => {
+  const res = await axiosInstance.put(`/fichajes/extra/${fichajeId}`, { extra });
   return res.data as { message: string; fichaje: Fichaje };
 };
 
