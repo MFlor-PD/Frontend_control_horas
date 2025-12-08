@@ -22,7 +22,7 @@ import { useProfilePhoto } from "../hooks/useProfilePhoto";
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function EditProfile() {
-  const { user, loading, logout, updateUserProfile, updateUser } = useContext(AuthContext);
+  const { user, loading, logout, updateUserProfile, setUser } = useContext(AuthContext);
   const router = useRouter();
   const { pickImage, setLocalNombre } = useProfilePhoto();
 
@@ -92,17 +92,26 @@ export default function EditProfile() {
       foto: foto || DEFAULT_ICON, // aseguramos que siempre haya una foto
     });
 
+    const sensitiveChange = user.foto !== updatedUser.foto ||user.valorHora !== updatedUser.valorHora;
+
+if (sensitiveChange) {
+  await AsyncStorage.removeItem("user");
+  await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+  setUser(updatedUser);
+}
+
+
     // --- 2️⃣ Actualiza context y AsyncStorage con datos locales ---
-    await updateUser({
-      nombre,
-      foto: foto || DEFAULT_ICON,
-      valorHora: updatedUser.valorHora, // reflejamos valorHora actualizado
-    });
+    //await updateUser({
+      //nombre,
+      //foto: foto || DEFAULT_ICON,
+     // valorHora: updatedUser.valorHora, // reflejamos valorHora actualizado
+    //});
     await setLocalNombre(nombre);
     await AsyncStorage.setItem("moneda", moneda);
 
     // --- 3️⃣ Determina si necesita relogin ---
-    const needsRelogin = email !== emailAnterior || password;
+    const needsRelogin = email !== emailAnterior || password || user.valorHora !== updatedUser.valorHora; ;
 
     if (needsRelogin) {
       // Limpiar token/contexto ANTES del Alert

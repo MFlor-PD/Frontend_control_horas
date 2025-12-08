@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUserProfile: (data: Partial<User> & { password?: string }) => Promise<User>;
   updateUser: (data: Partial<User>) => Promise<void>; // ✅ datos locales
+  setUser: (user: User | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -21,6 +22,7 @@ export const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   updateUserProfile: async () => {throw new Error("updateUserProfile no está implementado en el default del AuthContext.");},
   updateUser: async () => {}, // ✅ default
+  setUser: () => {},
 });
 
 export const AuthProvider = ({ children }: any) => {
@@ -129,7 +131,7 @@ export const AuthProvider = ({ children }: any) => {
 };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUserProfile, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUserProfile, updateUser, setUser }}>
       {children}
     </AuthContext.Provider>
   );

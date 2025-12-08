@@ -12,6 +12,7 @@ export interface User {
   valorHora: number;
   foto?: string;
   password?: string;
+  moneda?: string;
 }
 
 export interface UpdateProfileResponse {
