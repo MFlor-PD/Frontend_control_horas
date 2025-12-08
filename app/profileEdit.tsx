@@ -41,6 +41,22 @@ export default function EditProfile() {
     { denominacion: "ARS", nombre: "Peso argentino" },
     { denominacion: "GBP", nombre: "Libra esterlina" },
   ]);
+  useEffect(() => {
+  const loadMonedaData = async () => {
+    const storedMonedas = await AsyncStorage.getItem("monedasLocales");
+    const storedMoneda = await AsyncStorage.getItem("moneda");
+
+    if (storedMonedas) {
+      setMonedasLocales(JSON.parse(storedMonedas));
+    }
+
+    if (storedMoneda) {
+      setMoneda(storedMoneda);
+    }
+  };
+
+  loadMonedaData();
+}, []);
 
   const [showNuevaMoneda, setShowNuevaMoneda] = useState(false);
   const [nuevaDenominacion, setNuevaDenominacion] = useState("");
@@ -53,7 +69,7 @@ export default function EditProfile() {
       setEmail(user.email || "");
       setFoto(user.foto || DEFAULT_ICON);
       setValorHora(user.valorHora?.toString() || "0.00");
-      setMoneda("EUR - Euro");
+      //setMoneda("EUR - Euro");
       setMonedaDefault(false);
     }
   }, [user, loading]);
@@ -63,67 +79,88 @@ export default function EditProfile() {
     await updateUser({ foto: uri }); // ✅ solo local
   };
 
-  const handleSave = async () => {
-    if (!user) return;
+ const handleSave = async () => {
+  if (!user) return;
 
-    try {
-      const emailAnterior = user.email;
+  try {
+    const emailAnterior = user.email;
 
-      // --- 1️⃣ Actualiza backend para email, password y valorHora ---
-      await updateUserProfile({
-        email,
-        password: password || undefined,
-        valorHora: parseFloat(valorHora),
-      });
+    // --- 1️⃣ Actualiza backend y obtenemos el usuario actualizado ---
+    const updatedUser = await updateUserProfile({
+      email,
+      password: password || undefined,
+      valorHora: parseFloat(valorHora),
+      foto: foto || DEFAULT_ICON, // aseguramos que siempre haya una foto
+    });
 
-      // --- 2️⃣ Actualiza solo datos locales ---
-      await updateUser({ nombre, foto });
-      await setLocalNombre(nombre);
-      await AsyncStorage.setItem("moneda", moneda);
+    // --- 2️⃣ Actualiza context y AsyncStorage con datos locales ---
+    await updateUser({
+      nombre,
+      foto: foto || DEFAULT_ICON,
+      valorHora: updatedUser.valorHora, // reflejamos valorHora actualizado
+    });
+    await setLocalNombre(nombre);
+    await AsyncStorage.setItem("moneda", moneda);
 
-      // --- 3️⃣ Determina si necesita relogin ---
-      const needsRelogin = email !== emailAnterior || password;
+    // --- 3️⃣ Determina si necesita relogin ---
+    const needsRelogin = email !== emailAnterior || password;
 
-      if (needsRelogin) {
-        // Limpiar token/contexto ANTES del Alert
-        await logout();
+    if (needsRelogin) {
+      // Limpiar token/contexto ANTES del Alert
+      await logout();
 
-        Alert.alert(
-          "Perfil actualizado",
-          "Por seguridad, debes iniciar sesión nuevamente con tu nuevo email/contraseña.",
-          [
-            {
-              text: "Aceptar",
-              onPress: () => router.replace("/"), // login
-            },
-          ]
-        );
-        return;
-      }
-
-      // --- 4️⃣ Cambios locales y valorHora se guardaron correctamente ---
-      Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
-      router.replace("/(tabs)/profile");
-    } catch (err: any) {
-      console.error("❌ ERROR:", err);
-      Alert.alert("Error", err.message || "Error al guardar los cambios");
-    }
-  };
-
-  const handleAgregarMoneda = () => {
-    if (!nuevaDenominacion || !nuevoNombre) {
-      Alert.alert("Error", "Debe completar ambos campos");
+      Alert.alert(
+        "Perfil actualizado",
+        "Por seguridad, debes iniciar sesión nuevamente con tu nuevo email/contraseña.",
+        [
+          {
+            text: "Aceptar",
+            onPress: () => router.replace("/"), // login
+          },
+        ]
+      );
       return;
     }
-    const nuevaMoneda = { denominacion: nuevaDenominacion, nombre: nuevoNombre };
-    setMonedasLocales([...monedasLocales, nuevaMoneda]);
-    setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
-    setNuevaDenominacion("");
-    setNuevoNombre("");
-    setShowNuevaMoneda(false);
+
+    // --- 4️⃣ Cambios locales y backend guardados correctamente ---
+    Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
+    router.replace("/(tabs)/profile");
+  } catch (err: any) {
+    console.error("❌ ERROR:", err);
+    Alert.alert("Error", err.message || "Error al guardar los cambios");
+  }
+};
+
+  const handleAgregarMoneda = async () => {
+  if (!nuevaDenominacion || !nuevoNombre) {
+    Alert.alert("Error", "Debe completar ambos campos");
+    return;
+  }
+
+  const nuevaMoneda = {
+    denominacion: nuevaDenominacion,
+    nombre: nuevoNombre,
   };
 
-  if (!user || loading) return null;
+  const nuevasMonedas = [...monedasLocales, nuevaMoneda];
+
+  setMonedasLocales(nuevasMonedas);
+  setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
+
+  await AsyncStorage.setItem(
+    "monedasLocales",
+    JSON.stringify(nuevasMonedas)
+  );
+
+  await AsyncStorage.setItem(
+    "moneda",
+    `${nuevaDenominacion} - ${nuevoNombre}`
+  );
+
+  setNuevaDenominacion("");
+  setNuevoNombre("");
+  setShowNuevaMoneda(false);
+};
 
   return (
     <ScrollView style={styles.page}>
@@ -183,15 +220,21 @@ export default function EditProfile() {
 
           <Text style={styles.label}>Moneda</Text>
           <View style={styles.pickerContainer}>
-            <Picker selectedValue={moneda} onValueChange={setMoneda}>
-              {monedasLocales.map((m, index) => (
-                <Picker.Item
-                  key={index}
-                  label={`${m.denominacion} - ${m.nombre}`}
-                  value={`${m.denominacion} - ${m.nombre}`}
-                />
-              ))}
-            </Picker>
+           <Picker
+  selectedValue={moneda}
+  onValueChange={async (value) => {
+    setMoneda(value);
+    await AsyncStorage.setItem("moneda", value);
+  }}
+>
+            {monedasLocales.map((m, index) => (
+              <Picker.Item
+                key={index}
+                label={`${m.denominacion} - ${m.nombre}`}
+                value={`${m.denominacion} - ${m.nombre}`}
+              />
+            ))}
+          </Picker>
           </View>
 
           <View style={styles.defaultCurrencyContainer}>
