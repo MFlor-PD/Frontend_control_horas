@@ -76,7 +76,6 @@ export default function EditProfile() {
 
   const handleSetPhoto = async (uri: string) => {
     setFoto(uri);
-    await updateUser({ foto: uri }); // ✅ solo local
   };
 
  const handleSave = async () => {
@@ -182,7 +181,6 @@ export default function EditProfile() {
             placeholder="URL de la foto"
             value={foto}
             onChangeText={setFoto}
-            onBlur={async () => { if (user) await updateUser({ foto }); }} // ✅ solo local
           />
 
           <Text style={styles.label}>Nombre</Text>
