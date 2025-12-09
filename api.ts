@@ -60,9 +60,20 @@ export const registerUser = async (
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const res = await axiosInstance.post("/users/login", { email, password });
-  return res.data; // { token, user }
+  try {
+    const res = await axiosInstance.post("/users/login", { email, password });
+    return res.data; // { token, user }
+  } catch (error: any) {
+    // Aseguramos que el error tenga response.data
+    if (error.response && error.response.data) {
+      throw error; // lo lanza para que lo capture handleLogin
+    } else {
+      // Error de red u otro tipo
+      throw { request: true };
+    }
+  }
 };
+
 
 export const getProfile = async (userId: string) => {
   const res = await axiosInstance.get(`/users/me/${userId}`);

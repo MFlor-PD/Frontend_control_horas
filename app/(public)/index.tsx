@@ -4,6 +4,7 @@ import { useContext, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { loginUser } from "../../api"; // tu función de login que hace POST
 import { AuthContext } from "../../context/AuthContext";
+import { showAlert } from "../../utils/showAlerts";
 
 export default function Index() {
   const router = useRouter();
@@ -26,15 +27,25 @@ export default function Index() {
       router.replace("/clockIn");
 
     } catch (err: any) {
-      if (err.response) {
-        Alert.alert("Error", err.response.data?.error || "Usuario o contraseña incorrectos");
-      } else if (err.request) {
-        Alert.alert("Error", "No se pudo conectar al servidor");
-      } else {
-        Alert.alert("Error", "Ocurrió un error inesperado");
-      }
+  if (err.response && err.response.data?.error) {
+    const errorMsg = err.response.data.error;
+
+    if (errorMsg === "Usuario no encontrado") {
+      showAlert("Error", "Correo electrónico incorrecto");
+    } else if (errorMsg === "Contraseña incorrecta") {
+      showAlert("Error", "Contraseña incorrecta");
+    } else {
+      showAlert("Error", errorMsg);
     }
-  };
+
+  } else if (err.request) {
+    showAlert("Error", "No se pudo conectar al servidor");
+  } else {
+    showAlert("Error", "Ocurrió un error inesperado");
+  }
+}
+}
+
 
   const handleRegister = () => {
      router.push("/register");
@@ -105,4 +116,4 @@ const styles = StyleSheet.create({
   buttonText: { color: "#FFF", fontSize: 16, fontWeight: "600" },
   footerText: { fontSize: 14, color: "#555" },
   linkBlue: { color: "#2B6EF2", fontWeight: "600" },
-});
+})
