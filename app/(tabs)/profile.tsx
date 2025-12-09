@@ -1,69 +1,66 @@
 
 
 // app/(tabs)/profile.tsx
+// app/(tabs)/profile.tsx
 import { useRouter } from "expo-router";
-import { useContext, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useContext } from "react";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { deleteUser } from "../../api";
 import MonthlyEarningsCard from "../../component/monthlyEarningCard";
 import { AuthContext } from "../../context/AuthContext";
-import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function Profile() {
-  const { user, loading, updateUser } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
   const router = useRouter();
-  const [eliminando, setEliminando] = useState(false);
-  const { pickImage } = useProfilePhoto();
-  const [foto, setFoto] = useState(DEFAULT_ICON);
-  const [nombre, setNombre] = useState("");
 
-  useEffect(() => {
-    if (user) {
-      setFoto(user.foto || DEFAULT_ICON);
-      setNombre(user.nombre || "");
-    }
-  }, [user]);
-
-  const handleSetPhoto = async (uri: string) => {
-    setFoto(uri);
-    if (user) await updateUser({ ...user, foto: uri }); // persistencia en AsyncStorage
-  };
-
-  if (!user || loading) return null;
+  if (loading) return null;
+  if (!user) {
+    router.replace("/");
+    return null;
+  }
 
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
         <View style={styles.card}>
-          <TouchableOpacity onPress={async () => {
-            const uri = await pickImage();
-            if (uri) handleSetPhoto(uri);
-          }}>
-            <Image source={{ uri: foto || DEFAULT_ICON }} style={styles.avatar} />
-          </TouchableOpacity>
+          <Image
+            source={{ uri: user.foto || DEFAULT_ICON }}
+            style={styles.avatar}
+          />
 
-          <Text style={styles.userName}>{nombre}</Text>
+          <Text style={styles.userName}>{user.nombre}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
 
-          <TouchableOpacity style={styles.editButton} onPress={() => router.push("/profileEdit")}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push("/profileEdit")}
+          >
             <Text style={styles.editButtonText}>Editar Perfil</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.deleteButton} onPress={async () => {
-            try {
-              setEliminando(true);
-              await deleteUser(user.id);
-              setEliminando(false);
-              router.replace("/");
-            } catch (err) {
-              setEliminando(false);
-              Alert.alert("Error", "No se pudo eliminar el usuario.");
-              console.error(err);
-            }
-          }} disabled={eliminando}>
-            {eliminando ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>}
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={async () => {
+              try {
+                await deleteUser(user.id);
+                router.replace("/");
+              } catch (err) {
+                Alert.alert("Error", "No se pudo eliminar el usuario.");
+                console.error(err);
+              }
+            }}
+          >
+            <Text style={styles.deleteButtonText}>Eliminar Usuario</Text>
           </TouchableOpacity>
         </View>
 

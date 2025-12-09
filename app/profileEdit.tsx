@@ -1,7 +1,7 @@
-// app/profileEdit.tsx
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useContext, useEffect, useState } from "react";
 import {
@@ -16,16 +16,16 @@ import {
   View,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
-import { useProfilePhoto } from "../hooks/useProfilePhoto";
-
 
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function EditProfile() {
-  const { user, loading, logout, updateUserProfile, setUser } = useContext(AuthContext);
-  const router = useRouter();
-  const { pickImage, setLocalNombre } = useProfilePhoto();
+  const { user, loading, logout, updateUserProfile } =
+    useContext(AuthContext);
 
+  const router = useRouter();
+
+  // --- estado local SOLO para edición ---
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [foto, setFoto] = useState(DEFAULT_ICON);
@@ -41,148 +41,167 @@ export default function EditProfile() {
     { denominacion: "ARS", nombre: "Peso argentino" },
     { denominacion: "GBP", nombre: "Libra esterlina" },
   ]);
-  useEffect(() => {
-  const loadMonedaData = async () => {
-    const storedMonedas = await AsyncStorage.getItem("monedasLocales");
-    const storedMoneda = await AsyncStorage.getItem("moneda");
 
-    if (storedMonedas) {
-      setMonedasLocales(JSON.parse(storedMonedas));
+  // ---------------------------
+  // Carga de moneda (se deja igual)
+  // ---------------------------
+  useEffect(() => {
+    const loadMonedaData = async () => {
+      const storedMonedas = await AsyncStorage.getItem("monedasLocales");
+      const storedMoneda = await AsyncStorage.getItem("moneda");
+
+      if (storedMonedas) setMonedasLocales(JSON.parse(storedMonedas));
+      if (storedMoneda) setMoneda(storedMoneda);
+    };
+
+    loadMonedaData();
+  }, []);
+
+  // ---------------------------
+  // Carga de datos SOLO desde BBDD (user)
+  // ---------------------------
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/");
+      return;
     }
 
-    if (storedMoneda) {
-      setMoneda(storedMoneda);
-    }
-  };
-
-  loadMonedaData();
-}, []);
-
-  const [showNuevaMoneda, setShowNuevaMoneda] = useState(false);
-  const [nuevaDenominacion, setNuevaDenominacion] = useState("");
-  const [nuevoNombre, setNuevoNombre] = useState("");
-
-  useEffect(() => {
-    if (!loading && !user) router.replace("/");
-    else if (user) {
+    if (user) {
       setNombre(user.nombre || "");
       setEmail(user.email || "");
       setFoto(user.foto || DEFAULT_ICON);
       setValorHora(user.valorHora?.toString() || "0.00");
-      //setMoneda("EUR - Euro");
-      setMonedaDefault(false);
     }
   }, [user, loading]);
 
-  const handleSetPhoto = async (uri: string) => {
-    setFoto(uri);
-  };
+  // ---------------------------
+  // ImagePicker (solo UI)
+  // ---------------------------
+  const pickImage = async () => {
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
- const handleSave = async () => {
-  if (!user) return;
-
-  try {
-    const emailAnterior = user.email;
-
-    // --- 1️⃣ Actualiza backend y obtenemos el usuario actualizado ---
-    const updatedUser = await updateUserProfile({
-      email,
-      password: password || undefined,
-      valorHora: parseFloat(valorHora),
-      foto: foto || DEFAULT_ICON, // aseguramos que siempre haya una foto
-    });
-
-    const sensitiveChange = user.foto !== updatedUser.foto ||user.valorHora !== updatedUser.valorHora;
-
-if (sensitiveChange) {
-  await AsyncStorage.removeItem("user");
-  await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-  setUser(updatedUser);
-}
-
-
-    // --- 2️⃣ Actualiza context y AsyncStorage con datos locales ---
-    //await updateUser({
-      //nombre,
-      //foto: foto || DEFAULT_ICON,
-     // valorHora: updatedUser.valorHora, // reflejamos valorHora actualizado
-    //});
-    await setLocalNombre(nombre);
-    await AsyncStorage.setItem("moneda", moneda);
-
-    // --- 3️⃣ Determina si necesita relogin ---
-    const needsRelogin = email !== emailAnterior || password || user.valorHora !== updatedUser.valorHora; ;
-
-    if (needsRelogin) {
-      // Limpiar token/contexto ANTES del Alert
-      await logout();
-
-      Alert.alert(
-        "Perfil actualizado",
-        "Por seguridad, debes iniciar sesión nuevamente con tu nuevo email/contraseña.",
-        [
-          {
-            text: "Aceptar",
-            onPress: () => router.replace("/"), // login
-          },
-        ]
-      );
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Acceso a galería requerido");
       return;
     }
 
-    // --- 4️⃣ Cambios locales y backend guardados correctamente ---
-    Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
-    router.replace("/(tabs)/profile");
-  } catch (err: any) {
-    console.error("❌ ERROR:", err);
-    Alert.alert("Error", err.message || "Error al guardar los cambios");
-  }
-};
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
 
-  const handleAgregarMoneda = async () => {
-  if (!nuevaDenominacion || !nuevoNombre) {
-    Alert.alert("Error", "Debe completar ambos campos");
-    return;
-  }
-
-  const nuevaMoneda = {
-    denominacion: nuevaDenominacion,
-    nombre: nuevoNombre,
+    if (!result.canceled) {
+      setFoto(result.assets[0].uri);
+    }
   };
 
-  const nuevasMonedas = [...monedasLocales, nuevaMoneda];
+  // ---------------------------
+  // GUARDAR PERFIL
+  // ---------------------------
+  const handleSave = async () => {
+    if (!user) return;
 
-  setMonedasLocales(nuevasMonedas);
-  setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
+    try {
+      // 🔐 cambios sensibles → relogin
+      const sensitiveChange =
+        nombre !== user.nombre ||
+        foto !== (user.foto || DEFAULT_ICON) ||
+        email !== user.email ||
+        password.length > 0;
 
-  await AsyncStorage.setItem(
-    "monedasLocales",
-    JSON.stringify(nuevasMonedas)
-  );
+      await updateUserProfile({
+        nombre,
+        email,
+        password: password || undefined,
+        valorHora: parseFloat(valorHora),
+        foto: foto || DEFAULT_ICON,
+      });
 
-  await AsyncStorage.setItem(
-    "moneda",
-    `${nuevaDenominacion} - ${nuevoNombre}`
-  );
+      await AsyncStorage.setItem("moneda", moneda);
 
-  setNuevaDenominacion("");
-  setNuevoNombre("");
-  setShowNuevaMoneda(false);
-};
+      if (sensitiveChange) {
+        await logout();
 
+        Alert.alert(
+          "Perfil actualizado",
+          "Por seguridad, debes iniciar sesión nuevamente para aplicar los cambios.",
+          [
+            {
+              text: "Aceptar",
+              onPress: () => router.replace("/"),
+            },
+          ]
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Perfil actualizado",
+        "Tus cambios se guardaron correctamente."
+      );
+      router.replace("/(tabs)/profile");
+    } catch (err: any) {
+      console.error("❌ ERROR:", err);
+      Alert.alert(
+        "Error",
+        err.message || "Error al guardar los cambios"
+      );
+    }
+  };
+
+  // ---------------------------
+  // AGREGAR MONEDA (se deja igual)
+  // ---------------------------
+  const [showNuevaMoneda, setShowNuevaMoneda] = useState(false);
+  const [nuevaDenominacion, setNuevaDenominacion] = useState("");
+  const [nuevoNombre, setNuevoNombre] = useState("");
+
+  const handleAgregarMoneda = async () => {
+    if (!nuevaDenominacion || !nuevoNombre) {
+      Alert.alert("Error", "Debe completar ambos campos");
+      return;
+    }
+
+    const nuevaMoneda = {
+      denominacion: nuevaDenominacion,
+      nombre: nuevoNombre,
+    };
+
+    const nuevasMonedas = [...monedasLocales, nuevaMoneda];
+
+    setMonedasLocales(nuevasMonedas);
+    setMoneda(`${nuevaDenominacion} - ${nuevoNombre}`);
+
+    await AsyncStorage.setItem(
+      "monedasLocales",
+      JSON.stringify(nuevasMonedas)
+    );
+    await AsyncStorage.setItem(
+      "moneda",
+      `${nuevaDenominacion} - ${nuevoNombre}`
+    );
+
+    setNuevaDenominacion("");
+    setNuevoNombre("");
+    setShowNuevaMoneda(false);
+  };
+
+  // ---------------------------
+  // RENDER
+  // ---------------------------
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
         <Text style={styles.headerTitle}>Editar Perfil</Text>
 
         <View style={styles.card}>
-          <TouchableOpacity
-            onPress={async () => {
-              const uri = await pickImage();
-              if (uri) handleSetPhoto(uri);
-            }}
-          >
-            <Image source={{ uri: foto || DEFAULT_ICON }} style={styles.avatar} />
+          <TouchableOpacity onPress={pickImage}>
+            <Image
+              source={{ uri: foto || DEFAULT_ICON }}
+              style={styles.avatar}
+            />
           </TouchableOpacity>
 
           <TextInput
@@ -193,7 +212,11 @@ if (sensitiveChange) {
           />
 
           <Text style={styles.label}>Nombre</Text>
-          <TextInput style={styles.input} value={nombre} onChangeText={setNombre} />
+          <TextInput
+            style={styles.input}
+            value={nombre}
+            onChangeText={setNombre}
+          />
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -212,8 +235,15 @@ if (sensitiveChange) {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#555" />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off" : "eye"}
+                size={20}
+                color="#555"
+              />
             </TouchableOpacity>
           </View>
 
@@ -227,29 +257,39 @@ if (sensitiveChange) {
 
           <Text style={styles.label}>Moneda</Text>
           <View style={styles.pickerContainer}>
-           <Picker
-  selectedValue={moneda}
-  onValueChange={async (value) => {
-    setMoneda(value);
-    await AsyncStorage.setItem("moneda", value);
-  }}
->
-            {monedasLocales.map((m, index) => (
-              <Picker.Item
-                key={index}
-                label={`${m.denominacion} - ${m.nombre}`}
-                value={`${m.denominacion} - ${m.nombre}`}
-              />
-            ))}
-          </Picker>
+            <Picker
+              selectedValue={moneda}
+              onValueChange={async (value) => {
+                setMoneda(value);
+                await AsyncStorage.setItem("moneda", value);
+              }}
+            >
+              {monedasLocales.map((m, index) => (
+                <Picker.Item
+                  key={index}
+                  label={`${m.denominacion} - ${m.nombre}`}
+                  value={`${m.denominacion} - ${m.nombre}`}
+                />
+              ))}
+            </Picker>
           </View>
 
           <View style={styles.defaultCurrencyContainer}>
-            <Switch value={monedaDefault} onValueChange={setMonedaDefault} />
-            <Text style={styles.defaultCurrencyLabel}>Usar como moneda por defecto</Text>
+            <Switch
+              value={monedaDefault}
+              onValueChange={setMonedaDefault}
+            />
+            <Text style={styles.defaultCurrencyLabel}>
+              Usar como moneda por defecto
+            </Text>
 
-            <TouchableOpacity style={styles.addCurrencyButton} onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}>
-              <Text style={styles.addCurrencyButtonText}>Agregar nueva moneda</Text>
+            <TouchableOpacity
+              style={styles.addCurrencyButton}
+              onPress={() => setShowNuevaMoneda(!showNuevaMoneda)}
+            >
+              <Text style={styles.addCurrencyButtonText}>
+                Agregar nueva moneda
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -268,11 +308,19 @@ if (sensitiveChange) {
                 onChangeText={setNuevoNombre}
               />
               <View style={styles.buttonsRow}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleAgregarMoneda}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleAgregarMoneda}
+                >
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setShowNuevaMoneda(false)}>
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowNuevaMoneda(false)}
+                >
+                  <Text style={styles.cancelButtonText}>
+                    Cancelar
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -280,12 +328,24 @@ if (sensitiveChange) {
         </View>
 
         <View style={styles.buttonsRow}>
-          <TouchableOpacity style={[styles.saveButton, { flex: 1, marginRight: 5 }]} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, { marginRight: 5 }]}
+            onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>
+              Guardar Cambios
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]} onPress={() => router.replace("/(tabs)/profile")}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <TouchableOpacity
+            style={[styles.cancelButton, { marginLeft: 5 }]}
+            onPress={() =>
+              router.replace("/(tabs)/profile")
+            }
+          >
+            <Text style={styles.cancelButtonText}>
+              Cancelar
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -293,26 +353,113 @@ if (sensitiveChange) {
   );
 }
 
-// --- Styles (igual que antes) ---
+// ---- estilos (sin cambios) ----
 const styles = StyleSheet.create({
   page: { backgroundColor: "#F6F7FB" },
   container: { padding: 20 },
-  headerTitle: { fontSize: 20, fontWeight: "700", marginBottom: 15, textAlign: "center", color: "#000" },
-  card: { backgroundColor: "#FFF", padding: 20, borderRadius: 15, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, elevation: 3, marginBottom: 20 },
-  avatar: { width: 70, height: 70, borderRadius: 35, alignSelf: "center", marginBottom: 10 },
-  label: { fontSize: 14, fontWeight: "600", marginTop: 10, color: "#555" },
-  input: { borderWidth: 1, borderColor: "#DDD", borderRadius: 10, padding: 10, marginTop: 5, backgroundColor: "#FFF" },
-  passwordContainer: { flexDirection: "row", alignItems: "center", marginTop: 5 },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 15,
+    textAlign: "center",
+    color: "#000",
+  },
+  card: {
+    backgroundColor: "#FFF",
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 10,
+    color: "#555",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 5,
+    backgroundColor: "#FFF",
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
   eyeButton: { paddingHorizontal: 10 },
-  pickerContainer: { borderWidth: 1, borderColor: "#DDD", borderRadius: 10, marginTop: 5, backgroundColor: "#FFF" },
-  defaultCurrencyContainer: { flexDirection: "row", alignItems: "center", marginTop: 10, flexWrap: "wrap" },
-  defaultCurrencyLabel: { marginLeft: 10, fontSize: 14, color: "#555", fontWeight: "500" },
-  addCurrencyButton: { marginLeft: 10, backgroundColor: "#2B6EF2", padding: 5, borderRadius: 8 },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 10,
+    marginTop: 5,
+    backgroundColor: "#FFF",
+  },
+  defaultCurrencyContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    flexWrap: "wrap",
+  },
+  defaultCurrencyLabel: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#555",
+    fontWeight: "500",
+  },
+  addCurrencyButton: {
+    marginLeft: 10,
+    backgroundColor: "#2B6EF2",
+    padding: 5,
+    borderRadius: 8,
+  },
   addCurrencyButtonText: { color: "#FFF", fontSize: 12 },
-  nuevaMonedaCard: { backgroundColor: "#F0F0F0", padding: 15, borderRadius: 10, marginTop: 10 },
-  buttonsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  saveButton: { backgroundColor: "#2B6EF2", paddingVertical: 10, borderRadius: 10, flex: 1, marginRight: 5 },
-  saveButtonText: { color: "#FFF", textAlign: "center", fontWeight: "700", fontSize: 16 },
-  cancelButton: { backgroundColor: "#DDD", paddingVertical: 10, borderRadius: 10, flex: 1, marginLeft: 5 },
-  cancelButtonText: { color: "#555", textAlign: "center", fontWeight: "700", fontSize: 16 },
+  nuevaMonedaCard: {
+    backgroundColor: "#F0F0F0",
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  buttonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  saveButton: {
+    backgroundColor: "#2B6EF2",
+    paddingVertical: 10,
+    borderRadius: 10,
+    flex: 1,
+  },
+  saveButtonText: {
+    color: "#FFF",
+    textAlign: "center",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: "#DDD",
+    paddingVertical: 10,
+    borderRadius: 10,
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: "#555",
+    textAlign: "center",
+    fontWeight: "700",
+    fontSize: 16,
+  },
 });
