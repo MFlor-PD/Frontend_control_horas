@@ -191,22 +191,69 @@ export default function EditProfile() {
   // ---------------------------
   // RENDER
   // ---------------------------
+
+  const takePhoto = async () => {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+  if (status !== "granted") {
+    Alert.alert("Permiso denegado", "Acceso a cámara requerido");
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  });
+
+  if (!result.canceled) {
+    setFoto(result.assets[0].uri);
+  }
+};
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
         <Text style={styles.headerTitle}>Editar Perfil</Text>
 
         <View style={styles.card}>
-          <TouchableOpacity onPress={pickImage}>
+          {/* Avatar con badge de edición */}
+          <View style={styles.avatarContainer}>
             <Image
               source={{ uri: foto || DEFAULT_ICON }}
               style={styles.avatar}
             />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.editAvatarBadge} onPress={pickImage}>
+              <Ionicons name="camera" size={16} color="#FFF" />
+            </TouchableOpacity>
+          </View>
 
+          <Text style={styles.sectionTitle}>Cambiar foto de perfil</Text>
+
+          {/* Botones para foto */}
+          <View style={styles.photoButtons}>
+            <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
+              <Ionicons name="images-outline" size={20} color="#2B6EF2" />
+              <Text style={styles.photoButtonText}>Galería</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
+              <Ionicons name="camera-outline" size={20} color="#2B6EF2" />
+              <Text style={styles.photoButtonText}>Cámara</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Separador */}
+          <View style={styles.separator}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>O</Text>
+            <View style={styles.separatorLine} />
+          </View>
+
+          {/* Input URL */}
+          <Text style={styles.label}>Pegar URL de imagen</Text>
           <TextInput
             style={styles.input}
-            placeholder="URL de la foto"
+            placeholder="https://ejemplo.com/imagen.jpg"
             value={foto}
             onChangeText={setFoto}
           />
@@ -353,7 +400,7 @@ export default function EditProfile() {
   );
 }
 
-// ---- estilos (sin cambios) ----
+// ---- estilos ----
 const styles = StyleSheet.create({
   page: { backgroundColor: "#F6F7FB" },
   container: { padding: 20 },
@@ -374,12 +421,75 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 20,
   },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+  avatarContainer: {
     alignSelf: "center",
+    position: "relative",
     marginBottom: 10,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: "#2B6EF2",
+  },
+  editAvatarBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#2B6EF2",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  photoButtons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 15,
+    marginBottom: 15,
+  },
+  photoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F5FF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    gap: 8,
+    flex: 1,
+    justifyContent: "center",
+  },
+  photoButtonText: {
+    fontSize: 14,
+    color: "#2B6EF2",
+    fontWeight: "600",
+  },
+  separator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 15,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#DDD",
+  },
+  separatorText: {
+    marginHorizontal: 10,
+    fontSize: 12,
+    color: "#999",
+    fontWeight: "600",
   },
   label: {
     fontSize: 14,
