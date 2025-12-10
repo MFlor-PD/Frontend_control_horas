@@ -1,8 +1,6 @@
 //raiz/component/monthlyEarningCard.tsx
-
-
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import { historialFichajes } from "../api";
 
@@ -17,14 +15,11 @@ export default function MonthlyEarningsCard() {
         const res = await historialFichajes();
         const historial = res.historial || [];
 
-        // Array de 12 meses con valor 0
         const meses = Array(12).fill(0);
-
         historial.forEach((f) => {
           const fecha = new Date(f.fecha);
-          const mes = fecha.getMonth(); // 0..11
+          const mes = fecha.getMonth(); 
           const importe = f.importeDia || 0;
-
           meses[mes] += importe;
         });
 
@@ -49,32 +44,33 @@ export default function MonthlyEarningsCard() {
   }
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Mis Ganancias Estimadas</Text>
+    <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 10 }}>
+  <View style={styles.card}>
+    <Text style={styles.title}>Mis Ganancias Estimadas</Text>
+    <Text style={styles.amount}>${totalAnual.toFixed(2)}</Text>
 
-      <Text style={styles.amount}>${totalAnual.toFixed(2)}</Text>
+    <BarChart
+      data={{
+        labels: ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+        datasets: [{ data: ingresosPorMes }],
+      }}
+      width={Math.max(Dimensions.get("window").width - 60, 500)} // ancho mínimo mayor
+      height={180}
+      yAxisLabel="$"
+      yAxisSuffix=""
+      chartConfig={{
+        backgroundGradientFrom: "#ffffff",
+        backgroundGradientTo: "#ffffff",
+        decimalPlaces: 2,
+        color: (opacity = 1) => `rgba(43, 110, 242, ${opacity})`,
+        labelColor: () => "#999",
+      }}
+      style={{ marginTop: 10, borderRadius: 10 }}
+      fromZero
+    />
+  </View>
+</ScrollView>
 
-      <BarChart
-        data={{
-          labels: ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
-          datasets: [{ data: ingresosPorMes }],
-        }}
-        width={Dimensions.get("window").width - 60}
-        height={220}
-        yAxisLabel="$"
-        yAxisSuffix=""
-        chartConfig={{
-          backgroundGradientFrom: "#ffffff",
-          backgroundGradientTo: "#ffffff",
-          decimalPlaces: 2,
-          color: (opacity = 1) => `rgba(43, 110, 242, ${opacity})`,
-          labelColor: () => "#999",
-        }}
-        style={{ marginTop: 10, borderRadius: 10 }}
-        fromZero={true}
-        showValuesOnTopOfBars={false}
-      />
-    </View>
   );
 }
 
