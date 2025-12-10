@@ -16,13 +16,12 @@ import {
   View,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
+import { biometricAuth } from "../utils/biometricAuth"; // 🔹 agregar import biométrico
 
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function EditProfile() {
-  const { user, loading, logout, updateUserProfile } =
-    useContext(AuthContext);
-
+  const { user, loading, logout, updateUserProfile } = useContext(AuthContext);
   const router = useRouter();
 
   // --- estado local SOLO para edición ---
@@ -41,6 +40,23 @@ export default function EditProfile() {
     { denominacion: "ARS", nombre: "Peso argentino" },
     { denominacion: "GBP", nombre: "Libra esterlina" },
   ]);
+
+  // 🔹 Estados biométricos
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState("");
+
+  // ---------------------------
+  // Carga biométrico
+  // ---------------------------
+  useEffect(() => {
+    const loadBiometric = async () => {
+      const enabled = await biometricAuth.isEnabled();
+      const type = await biometricAuth.getType();
+      setBiometricEnabled(enabled);
+      setBiometricType(type);
+    };
+    loadBiometric();
+  }, []);
 
   // ---------------------------
   // Carga de moneda (se deja igual)
@@ -78,8 +94,7 @@ export default function EditProfile() {
   // ImagePicker (solo UI)
   // ---------------------------
   const pickImage = async () => {
-    const { status } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== "granted") {
       Alert.alert("Permiso denegado", "Acceso a galería requerido");
@@ -87,6 +102,25 @@ export default function EditProfile() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setFoto(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Acceso a cámara requerido");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -188,28 +222,23 @@ export default function EditProfile() {
     setShowNuevaMoneda(false);
   };
 
+  // 🔹 Toggle biométrico
+  const toggleBiometric = async () => {
+    if (biometricEnabled) {
+      await biometricAuth.disable();
+      setBiometricEnabled(false);
+      Alert.alert("Desactivado", "Autenticación biométrica desactivada");
+    } else {
+      Alert.alert(
+        "Habilitar",
+        "Para habilitar la autenticación biométrica, cierra sesión y vuelve a iniciar sesión"
+      );
+    }
+  };
+
   // ---------------------------
   // RENDER
   // ---------------------------
-
-  const takePhoto = async () => {
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-
-  if (status !== "granted") {
-    Alert.alert("Permiso denegado", "Acceso a cámara requerido");
-    return;
-  }
-
-  const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.7,
-  });
-
-  if (!result.canceled) {
-    setFoto(result.assets[0].uri);
-  }
-};
   return (
     <ScrollView style={styles.page}>
       <View style={styles.container}>
@@ -235,7 +264,7 @@ export default function EditProfile() {
               <Ionicons name="images-outline" size={20} color="#2B6EF2" />
               <Text style={styles.photoButtonText}>Galería</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
               <Ionicons name="camera-outline" size={20} color="#2B6EF2" />
               <Text style={styles.photoButtonText}>Cámara</Text>
@@ -372,6 +401,21 @@ export default function EditProfile() {
               </View>
             </View>
           )}
+
+          {/* 🔹 SECCIÓN BIOMÉTRICO */}
+          <View style={styles.biometricContainer}>
+            <Text style={styles.label}>{biometricType}</Text>
+            <View style={styles.biometricRow}>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={toggleBiometric}
+              />
+              <Text style={styles.biometricLabel}>
+                {biometricEnabled ? "Activado" : "Desactivado"}
+              </Text>
+            </View>
+          </View>
+
         </View>
 
         <View style={styles.buttonsRow}>
@@ -386,9 +430,7 @@ export default function EditProfile() {
 
           <TouchableOpacity
             style={[styles.cancelButton, { marginLeft: 5 }]}
-            onPress={() =>
-              router.replace("/(tabs)/profile")
-            }
+            onPress={() => router.replace("/(tabs)/profile")}
           >
             <Text style={styles.cancelButtonText}>
               Cancelar
@@ -571,5 +613,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
     fontSize: 16,
+  },
+   biometricContainer: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: "#EEE",
+  },
+  biometricRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  biometricLabel: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#555",
+    fontWeight: "500",
   },
 });

@@ -26,6 +26,7 @@
     "expo-image": "~3.0.11",
     "expo-image-picker": "~17.0.9",
     "expo-linking": "~8.0.10",
+    "expo-local-authentication": "~17.0.8",
     "expo-print": "~15.0.8",
     "expo-router": "~6.0.17",
     "expo-sharing": "~14.0.8",
