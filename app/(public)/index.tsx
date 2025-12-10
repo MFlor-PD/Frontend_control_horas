@@ -101,6 +101,13 @@ export default function Index() {
           Regístrate aquí
         </Text>
       </Text>
+
+      <Text style={[styles.footerText, { marginTop: 5 }]}>
+  ¿Olvidaste tu contraseña?{" "}
+  <Text style={styles.linkBlue} onPress={() => router.push("../recover")}>
+    Recuperar cuenta
+  </Text>
+</Text>
     </View>
   );
 }

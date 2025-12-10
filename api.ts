@@ -64,16 +64,13 @@ export const loginUser = async (email: string, password: string) => {
     const res = await axiosInstance.post("/users/login", { email, password });
     return res.data; // { token, user }
   } catch (error: any) {
-    // Aseguramos que el error tenga response.data
     if (error.response && error.response.data) {
-      throw error; // lo lanza para que lo capture handleLogin
+      throw error;
     } else {
-      // Error de red u otro tipo
       throw { request: true };
     }
   }
 };
-
 
 export const getProfile = async (userId: string) => {
   const res = await axiosInstance.get(`/users/me/${userId}`);
@@ -155,3 +152,32 @@ export const eliminarTodoHistorial = async () => {
     throw error;
   }
 };
+
+// ---------------------- RECUPERACIÓN DE CONTRASEÑA ---------------------- //
+
+// Enviar código de recuperación al email del usuario
+export const requestPasswordRecovery = async (email: string, destino: string) => {
+  try {
+    const res = await axiosInstance.post("/recovery/recover", { email, destino });
+    return res.data; // { message: string }
+  } catch (error: any) {
+    if (error.response && error.response.data) {
+      throw error;
+    }
+    throw { request: true }; // error de red u otro
+  }
+};
+
+// Cambiar contraseña con código
+export const resetPassword = async (email: string, code: string, newPassword: string) => {
+  try {
+    const res = await axiosInstance.post("/recovery/reset", { email, code, newPassword });
+    return res.data; // { message: string }
+  } catch (error: any) {
+    if (error.response && error.response.data) {
+      throw error;
+    }
+    throw { request: true };
+  }
+};
+
