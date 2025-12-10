@@ -10,11 +10,21 @@ export async function generarFichajesPDF(fichajes: Fichaje[], user: User) {
     .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
     .map((f) => {
       const fecha = new Date(f.fecha).toLocaleDateString("es-ES");
+
+      // Convertir a hora local
+      const inicioLocal = f.inicio
+        ? new Date(f.inicio).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "--";
+
+      const finLocal = f.fin
+        ? new Date(f.fin).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "--";
+
       return `
         <tr>
           <td>${fecha}</td>
-          <td>${f.inicio}</td>
-          <td>${f.fin || "--"}</td>
+          <td>${inicioLocal}</td>
+          <td>${finLocal}</td>
           <td>${(f.duracionHoras || 0).toFixed(2)} h</td>
           <td>${f.extra ? "✅" : ""}</td>
           <td>${(f.importeDia || 0).toFixed(2)} ${user.moneda || "EUR"}</td>
@@ -60,7 +70,6 @@ export async function generarFichajesPDF(fichajes: Fichaje[], user: User) {
   `;
 
   if (Platform.OS === "web") {
-    // Abrir nueva ventana para imprimir en web
     const newWindow = window.open("", "_blank");
     if (newWindow) {
       newWindow.document.write(html);
@@ -72,7 +81,6 @@ export async function generarFichajesPDF(fichajes: Fichaje[], user: User) {
     return;
   }
 
-  // Móvil: expo-print + expo-sharing
   const { uri } = await Print.printToFileAsync({ html });
   await Sharing.shareAsync(uri);
 }
