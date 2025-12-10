@@ -28,7 +28,7 @@ export default function Historical() {
   const { user, loading } = useContext(AuthContext);
   const router = useRouter();
 
-  const [grouped, setGrouped] = useState<{ [key: string]: Fichaje[] }>({});
+  const [fichajes, setFichajes] = useState<Fichaje[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -40,15 +40,8 @@ export default function Historical() {
     try {
       const data = await historialFichajes();
       const list = data.historial || [];
-
-      const agrupado: { [key: string]: Fichaje[] } = {};
-      list.forEach((f) => {
-        const key = new Date(f.fecha).toLocaleDateString();
-        if (!agrupado[key]) agrupado[key] = [];
-        agrupado[key].push(f);
-      });
-
-      setGrouped(agrupado);
+      // Ordenar por fecha descendente (más reciente primero)
+      setFichajes(list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
       setSelectedIds([]);
     } catch (error) {
       console.error("Error historial:", error);
@@ -64,15 +57,9 @@ export default function Historical() {
   const toggleExtra = async (f: Fichaje) => {
     try {
       const data = await marcarExtra(f._id, !f.extra);
-      setGrouped((prev) => {
-        const key = new Date(f.fecha).toLocaleDateString();
-        return {
-          ...prev,
-          [key]: prev[key].map((item) =>
-            item._id === f._id ? data.fichaje : item
-          ),
-        };
-      });
+      setFichajes((prev) =>
+        prev.map((item) => (item._id === f._id ? data.fichaje : item))
+      );
     } catch (err) {
       console.error("Error toggle extra:", err);
     }
@@ -112,10 +99,8 @@ export default function Historical() {
 
   const fichajesParaExportar: Fichaje[] = (
     selectedIds.length > 0
-      ? Object.values(grouped)
-          .flat()
-          .filter((f) => selectedIds.includes(f._id))
-      : Object.values(grouped).flat()
+      ? fichajes.filter((f) => selectedIds.includes(f._id))
+      : fichajes
   ).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
   if (!user || loading) return null;
@@ -127,6 +112,15 @@ export default function Historical() {
           minute: "2-digit",
         })
       : "--";
+
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -145,55 +139,41 @@ export default function Historical() {
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={true}
       >
-        {Object.keys(grouped).length === 0 ? (
+        {fichajes.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No hay fichajes en el historial</Text>
           </View>
         ) : (
           <>
-            {Object.keys(grouped).map((dia) => {
-              const fecha = new Date(dia).toLocaleDateString("es-ES", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              });
+            {fichajes.map((f) => {
+              const isSelected = selectedIds.includes(f._id);
 
               return (
-                <View key={dia} style={styles.dayBlock}>
-                  <Text style={styles.dayTitle}>{fecha}</Text>
+                <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
+                  <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
+                  </Pressable>
 
-                  {grouped[dia].map((f) => {
-                    const isSelected = selectedIds.includes(f._id);
+                  <View style={styles.cardContent}>
+                    <Text style={styles.dateText}>{formatDate(f.fecha)}</Text>
+                    <Text style={styles.row}>
+                      <Text style={styles.label}>Entrada: </Text>
+                      {formatTime(f.inicio)}
+                    </Text>
+                    <Text style={styles.row}>
+                      <Text style={styles.label}>Salida: </Text>
+                      {formatTime(f.fin)}
+                    </Text>
+                    <Text style={styles.row}>
+                      <Text style={styles.label}>Total: </Text>
+                      {f.duracionHoras?.toFixed(2) || "0"}h
+                    </Text>
+                  </View>
 
-                    return (
-                      <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
-                        <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
-                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
-                        </Pressable>
-
-                        <View style={styles.cardContent}>
-                          <Text style={styles.row}>
-                            <Text style={styles.label}>Entrada: </Text>
-                            {formatTime(f.inicio)}
-                          </Text>
-                          <Text style={styles.row}>
-                            <Text style={styles.label}>Salida: </Text>
-                            {formatTime(f.fin)}
-                          </Text>
-                          <Text style={styles.row}>
-                            <Text style={styles.label}>Total: </Text>
-                            {f.duracionHoras?.toFixed(2) || "0"}h
-                          </Text>
-                        </View>
-
-                        <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
-                          <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
-                          <Text style={styles.extraLabel}>Extra</Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
+                  <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
+                    <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
+                    <Text style={styles.extraLabel}>Extra</Text>
+                  </Pressable>
                 </View>
               );
             })}
@@ -202,7 +182,7 @@ export default function Historical() {
       </ScrollView>
 
       {/* Botones fijos en la parte inferior con scroll horizontal */}
-      {Object.keys(grouped).length > 0 && (
+      {fichajes.length > 0 && (
         <View style={styles.bottomButtonsContainer}>
           <ScrollView 
             horizontal 
@@ -301,15 +281,6 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
   },
-  dayBlock: { 
-    marginBottom: 20 
-  },
-  dayTitle: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    marginBottom: 10, 
-    textTransform: "capitalize" 
-  },
   card: { 
     backgroundColor: "white", 
     borderRadius: 12, 
@@ -345,6 +316,12 @@ const styles = StyleSheet.create({
   },
   cardContent: { 
     flex: 1 
+  },
+  dateText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#666",
+    marginBottom: 8,
   },
   row: { 
     fontSize: 16, 
