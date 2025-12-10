@@ -22,7 +22,6 @@ import { AuthContext } from "../../context/AuthContext";
 import { generarFichajesPDF } from "../../utils/generarFichajePdf";
 import { generarFichajesExcel } from "../../utils/generarFichajesExcel";
 
-
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
 export default function Historical() {
@@ -44,7 +43,7 @@ export default function Historical() {
 
       const agrupado: { [key: string]: Fichaje[] } = {};
       list.forEach((f) => {
-        const key = new Date(f.fecha).toISOString().split("T")[0];
+        const key = new Date(f.fecha).toLocaleDateString(); // local
         if (!agrupado[key]) agrupado[key] = [];
         agrupado[key].push(f);
       });
@@ -66,7 +65,7 @@ export default function Historical() {
     try {
       const data = await marcarExtra(f._id, !f.extra);
       setGrouped((prev) => {
-        const key = new Date(f.fecha).toISOString().split("T")[0];
+        const key = new Date(f.fecha).toLocaleDateString();
         return {
           ...prev,
           [key]: prev[key].map((item) =>
@@ -111,35 +110,29 @@ export default function Historical() {
     fetchHistorial();
   };
 
-  /**
-   * ✅ FICHAJES A EXPORTAR (MEJORA PRINCIPAL)
-   * - Si hay seleccionados → solo esos
-   * - Si no → todos
-   * - Siempre ordenados por fecha
-   */
- 
-
+  // Fichajes a exportar
   const fichajesParaExportar: Fichaje[] = (
-  selectedIds.length > 0
-    ? Object.values(grouped)
-        .flat()
-        .filter((f) => selectedIds.includes(f._id))
-    : Object.values(grouped).flat()
-).sort(
-  (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
-);
-
+    selectedIds.length > 0
+      ? Object.values(grouped)
+          .flat()
+          .filter((f) => selectedIds.includes(f._id))
+      : Object.values(grouped).flat()
+  ).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
   if (!user || loading) return null;
 
+  const formatTime = (isoString?: string) =>
+    isoString
+      ? new Date(isoString).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "--";
+
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.userHeader}>
-        <Image
-          source={{ uri: user.foto || DEFAULT_ICON }}
-          style={styles.userAvatar}
-        />
+        <Image source={{ uri: user.foto || DEFAULT_ICON }} style={styles.userAvatar} />
         <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
       </View>
 
@@ -161,30 +154,19 @@ export default function Historical() {
               const isSelected = selectedIds.includes(f._id);
 
               return (
-                <View
-                  key={f._id}
-                  style={[styles.card, isSelected && styles.cardSelected]}
-                >
-                  <Pressable
-                    style={styles.checkboxContainer}
-                    onPress={() => toggleSelect(f._id)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        isSelected && styles.checkboxSelected,
-                      ]}
-                    />
+                <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
+                  <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
                   </Pressable>
 
                   <View style={styles.cardContent}>
                     <Text style={styles.row}>
                       <Text style={styles.label}>Entrada: </Text>
-                      {f.inicio}
+                      {formatTime(f.inicio)}
                     </Text>
                     <Text style={styles.row}>
                       <Text style={styles.label}>Salida: </Text>
-                      {f.fin || "--"}
+                      {formatTime(f.fin)}
                     </Text>
                     <Text style={styles.row}>
                       <Text style={styles.label}>Total: </Text>
@@ -192,16 +174,8 @@ export default function Historical() {
                     </Text>
                   </View>
 
-                  <Pressable
-                    style={styles.extraContainer}
-                    onPress={() => toggleExtra(f)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        f.extra && styles.checkboxSelected,
-                      ]}
-                    />
+                  <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
+                    <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
                     <Text style={styles.extraLabel}>Extra</Text>
                   </Pressable>
                 </View>
@@ -213,43 +187,31 @@ export default function Historical() {
 
       {Object.keys(grouped).length > 0 && (
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleEliminarSeleccionados}
-          >
+          <TouchableOpacity style={styles.button} onPress={handleEliminarSeleccionados}>
             <Text style={styles.buttonText}>Eliminar seleccionados</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, styles.buttonRed]}
-            onPress={handleEliminarTodo}
-          >
+          <TouchableOpacity style={[styles.button, styles.buttonRed]} onPress={handleEliminarTodo}>
             <Text style={styles.buttonText}>Eliminar todo</Text>
           </TouchableOpacity>
 
-          {/* ✅ BOTÓN PDF MEJORADO */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: "#4CAF50" }]}
             onPress={() => generarFichajesPDF(fichajesParaExportar, user)}
           >
             <Text style={styles.buttonText}>
-              {selectedIds.length > 0
-                ? "PDF seleccionados"
-                : "Descargar PDF"}
+              {selectedIds.length > 0 ? "PDF seleccionados" : "Descargar PDF"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-  style={[styles.button, { backgroundColor: "#2E7D32" }]}
-  onPress={() => generarFichajesExcel(fichajesParaExportar, user)}
->
-  <Text style={styles.buttonText}>
-    {selectedIds.length > 0
-      ? "Excel seleccionados"
-      : "Descargar Excel"}
-  </Text>
-</TouchableOpacity>
-
+            style={[styles.button, { backgroundColor: "#2E7D32" }]}
+            onPress={() => generarFichajesExcel(fichajesParaExportar, user)}
+          >
+            <Text style={styles.buttonText}>
+              {selectedIds.length > 0 ? "Excel seleccionados" : "Descargar Excel"}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
@@ -257,110 +219,25 @@ export default function Historical() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F3F5F7",
-  },
-  userHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-    gap: 10,
-  },
-  userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  userGreeting: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 15,
-  },
-  dayBlock: {
-    marginBottom: 20,
-  },
-  dayTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-    textTransform: "capitalize",
-  },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    elevation: 3,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    position: "relative",
-  },
-  cardSelected: {
-    borderWidth: 2,
-    borderColor: "#FF3B30",
-  },
-  checkboxContainer: {
-    marginRight: 10,
-    marginTop: 5,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1.5,
-    borderColor: "#999",
-    borderRadius: 4,
-    backgroundColor: "white",
-  },
-  checkboxSelected: {
-    backgroundColor: "#FF3B30",
-    borderColor: "#FF3B30",
-  },
-  cardContent: {
-    flex: 1,
-  },
-  row: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  label: {
-    fontWeight: "600",
-  },
-  extraContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-    gap: 5,
-  },
-  extraLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  buttonsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  button: {
-    backgroundColor: "#FF9500",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-  buttonRed: {
-    backgroundColor: "#FF3B30",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#F3F5F7" },
+  userHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15, gap: 10 },
+  userAvatar: { width: 50, height: 50, borderRadius: 25 },
+  userGreeting: { fontSize: 18, fontWeight: "700" },
+  title: { fontSize: 22, fontWeight: "700", marginBottom: 15 },
+  dayBlock: { marginBottom: 20 },
+  dayTitle: { fontSize: 18, fontWeight: "600", marginBottom: 10, textTransform: "capitalize" },
+  card: { backgroundColor: "white", borderRadius: 12, padding: 15, marginBottom: 10, elevation: 3, flexDirection: "row", alignItems: "flex-start", position: "relative" },
+  cardSelected: { borderWidth: 2, borderColor: "#FF3B30" },
+  checkboxContainer: { marginRight: 10, marginTop: 5 },
+  checkbox: { width: 20, height: 20, borderWidth: 1.5, borderColor: "#999", borderRadius: 4, backgroundColor: "white" },
+  checkboxSelected: { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
+  cardContent: { flex: 1 },
+  row: { fontSize: 16, marginBottom: 5 },
+  label: { fontWeight: "600" },
+  extraContainer: { flexDirection: "row", alignItems: "center", marginTop: 5, gap: 5 },
+  extraLabel: { fontSize: 14, fontWeight: "600" },
+  buttonsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, marginBottom: 30 },
+  button: { backgroundColor: "#FF9500", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", marginHorizontal: 5 },
+  buttonRed: { backgroundColor: "#FF3B30" },
+  buttonText: { color: "white", fontWeight: "600", fontSize: 14 },
 });

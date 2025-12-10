@@ -2,7 +2,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_URL = "http://localhost:4000/api";
+const API_URL = "https://backend-aplicacion-movil-fichaje.onrender.com/api";
 
 // ---------------------- TIPOS ---------------------- //
 export interface User {
@@ -38,15 +38,23 @@ const axiosInstance = axios.create({
   baseURL: API_URL,
 });
 
-// Interceptor para enviar token desde AsyncStorage en todas las requests
-axiosInstance.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem("token");
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+// ---------------------- INTERCEPTOR ---------------------- //
+// Inferir automáticamente el tipo de config que espera Axios
+type AxiosRequestConfigType = Parameters<
+  typeof axiosInstance.interceptors.request.use
+>[0] extends (config: infer C) => any ? C : never;
+
+axiosInstance.interceptors.request.use((config: any) => {
+  return AsyncStorage.getItem("token").then((token) => {
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 });
+
+
 
 // ---------------------- USERS ---------------------- //
 export const registerUser = async (
@@ -154,8 +162,6 @@ export const eliminarTodoHistorial = async () => {
 };
 
 // ---------------------- RECUPERACIÓN DE CONTRASEÑA ---------------------- //
-
-// Enviar código de recuperación al email del usuario
 export const requestPasswordRecovery = async (email: string, destino: string) => {
   try {
     const res = await axiosInstance.post("/recovery/recover", { email, destino });
@@ -164,11 +170,10 @@ export const requestPasswordRecovery = async (email: string, destino: string) =>
     if (error.response && error.response.data) {
       throw error;
     }
-    throw { request: true }; // error de red u otro
+    throw { request: true };
   }
 };
 
-// Cambiar contraseña con código
 export const resetPassword = async (email: string, code: string, newPassword: string) => {
   try {
     const res = await axiosInstance.post("/recovery/reset", { email, code, newPassword });
@@ -180,4 +185,3 @@ export const resetPassword = async (email: string, code: string, newPassword: st
     throw { request: true };
   }
 };
-

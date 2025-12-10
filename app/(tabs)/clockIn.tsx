@@ -48,16 +48,11 @@ export default function ClockIn() {
           setWorking(true);
           setFichajeId(data.fichajeEnCurso._id);
 
-          const { inicio, fecha } = data.fichajeEnCurso;
-          const inicioDate = new Date(fecha);
-          const [h, m] = inicio.split(":");
-          inicioDate.setHours(Number(h), Number(m), 0, 0);
-
-          const diff = Math.floor(
-            (Date.now() - inicioDate.getTime()) / 1000
-          );
-
+          // Calcular segundos desde la fecha UTC
+          const inicioDate = new Date(data.fichajeEnCurso.fecha);
+          const diff = Math.floor((Date.now() - inicioDate.getTime()) / 1000);
           setSeconds(diff);
+
           startInterval();
         }
       } catch (err) {
@@ -147,7 +142,6 @@ export default function ClockIn() {
 
   return (
     <View style={styles.container}>
-      {/* 👤 Header usuario (SOLO VISUAL) */}
       <View style={styles.userHeader}>
         <Image
           source={{ uri: user.foto || DEFAULT_ICON }}
