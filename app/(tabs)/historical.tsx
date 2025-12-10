@@ -43,7 +43,7 @@ export default function Historical() {
 
       const agrupado: { [key: string]: Fichaje[] } = {};
       list.forEach((f) => {
-        const key = new Date(f.fecha).toLocaleDateString(); // local
+        const key = new Date(f.fecha).toLocaleDateString();
         if (!agrupado[key]) agrupado[key] = [];
         agrupado[key].push(f);
       });
@@ -110,7 +110,6 @@ export default function Historical() {
     fetchHistorial();
   };
 
-  // Fichajes a exportar
   const fichajesParaExportar: Fichaje[] = (
     selectedIds.length > 0
       ? Object.values(grouped)
@@ -130,114 +129,277 @@ export default function Historical() {
       : "--";
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.userHeader}>
-        <Image source={{ uri: user.foto || DEFAULT_ICON }} style={styles.userAvatar} />
-        <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+    <View style={styles.container}>
+      {/* Header fijo */}
+      <View style={styles.header}>
+        <View style={styles.userHeader}>
+          <Image source={{ uri: user.foto || DEFAULT_ICON }} style={styles.userAvatar} />
+          <Text style={styles.userGreeting}>Hola, {user.nombre}</Text>
+        </View>
+        <Text style={styles.title}>Historial de Fichajes</Text>
       </View>
 
-      <Text style={styles.title}>Historial de Fichajes</Text>
-
-      {Object.keys(grouped).map((dia) => {
-        const fecha = new Date(dia).toLocaleDateString("es-ES", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-
-        return (
-          <View key={dia} style={styles.dayBlock}>
-            <Text style={styles.dayTitle}>{fecha}</Text>
-
-            {grouped[dia].map((f) => {
-              const isSelected = selectedIds.includes(f._id);
+      {/* Contenido scrolleable */}
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={true}
+      >
+        {Object.keys(grouped).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No hay fichajes en el historial</Text>
+          </View>
+        ) : (
+          <>
+            {Object.keys(grouped).map((dia) => {
+              const fecha = new Date(dia).toLocaleDateString("es-ES", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              });
 
               return (
-                <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
-                  <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
-                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
-                  </Pressable>
+                <View key={dia} style={styles.dayBlock}>
+                  <Text style={styles.dayTitle}>{fecha}</Text>
 
-                  <View style={styles.cardContent}>
-                    <Text style={styles.row}>
-                      <Text style={styles.label}>Entrada: </Text>
-                      {formatTime(f.inicio)}
-                    </Text>
-                    <Text style={styles.row}>
-                      <Text style={styles.label}>Salida: </Text>
-                      {formatTime(f.fin)}
-                    </Text>
-                    <Text style={styles.row}>
-                      <Text style={styles.label}>Total: </Text>
-                      {f.duracionHoras?.toFixed(2) || "0"}h
-                    </Text>
-                  </View>
+                  {grouped[dia].map((f) => {
+                    const isSelected = selectedIds.includes(f._id);
 
-                  <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
-                    <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
-                    <Text style={styles.extraLabel}>Extra</Text>
-                  </Pressable>
+                    return (
+                      <View key={f._id} style={[styles.card, isSelected && styles.cardSelected]}>
+                        <Pressable style={styles.checkboxContainer} onPress={() => toggleSelect(f._id)}>
+                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
+                        </Pressable>
+
+                        <View style={styles.cardContent}>
+                          <Text style={styles.row}>
+                            <Text style={styles.label}>Entrada: </Text>
+                            {formatTime(f.inicio)}
+                          </Text>
+                          <Text style={styles.row}>
+                            <Text style={styles.label}>Salida: </Text>
+                            {formatTime(f.fin)}
+                          </Text>
+                          <Text style={styles.row}>
+                            <Text style={styles.label}>Total: </Text>
+                            {f.duracionHoras?.toFixed(2) || "0"}h
+                          </Text>
+                        </View>
+
+                        <Pressable style={styles.extraContainer} onPress={() => toggleExtra(f)}>
+                          <View style={[styles.checkbox, f.extra && styles.checkboxSelected]} />
+                          <Text style={styles.extraLabel}>Extra</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
                 </View>
               );
             })}
-          </View>
-        );
-      })}
+          </>
+        )}
+      </ScrollView>
 
+      {/* Botones fijos en la parte inferior con scroll horizontal */}
       {Object.keys(grouped).length > 0 && (
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.button} onPress={handleEliminarSeleccionados}>
-            <Text style={styles.buttonText}>Eliminar seleccionados</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.button, styles.buttonRed]} onPress={handleEliminarTodo}>
-            <Text style={styles.buttonText}>Eliminar todo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#4CAF50" }]}
-            onPress={() => generarFichajesPDF(fichajesParaExportar, user)}
+        <View style={styles.bottomButtonsContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.buttonsScrollContent}
           >
-            <Text style={styles.buttonText}>
-              {selectedIds.length > 0 ? "PDF seleccionados" : "Descargar PDF"}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={handleEliminarSeleccionados}
+              disabled={selectedIds.length === 0}
+            >
+              <Text style={styles.buttonText}>
+                {selectedIds.length > 0 ? `Eliminar (${selectedIds.length})` : "Eliminar"}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#2E7D32" }]}
-            onPress={() => generarFichajesExcel(fichajesParaExportar, user)}
-          >
-            <Text style={styles.buttonText}>
-              {selectedIds.length > 0 ? "Excel seleccionados" : "Descargar Excel"}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, styles.buttonRed]} 
+              onPress={handleEliminarTodo}
+            >
+              <Text style={styles.buttonText}>Eliminar todo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonGreen]}
+              onPress={() => generarFichajesPDF(fichajesParaExportar, user)}
+            >
+              <Text style={styles.buttonText}>
+                {selectedIds.length > 0 ? "PDF" : "PDF completo"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonDarkGreen]}
+              onPress={() => generarFichajesExcel(fichajesParaExportar, user)}
+            >
+              <Text style={styles.buttonText}>
+                {selectedIds.length > 0 ? "Excel" : "Excel completo"}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#F3F5F7" },
-  userHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15, gap: 10 },
-  userAvatar: { width: 50, height: 50, borderRadius: 25 },
-  userGreeting: { fontSize: 18, fontWeight: "700" },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 15 },
-  dayBlock: { marginBottom: 20 },
-  dayTitle: { fontSize: 18, fontWeight: "600", marginBottom: 10, textTransform: "capitalize" },
-  card: { backgroundColor: "white", borderRadius: 12, padding: 15, marginBottom: 10, elevation: 3, flexDirection: "row", alignItems: "flex-start", position: "relative" },
-  cardSelected: { borderWidth: 2, borderColor: "#FF3B30" },
-  checkboxContainer: { marginRight: 10, marginTop: 5 },
-  checkbox: { width: 20, height: 20, borderWidth: 1.5, borderColor: "#999", borderRadius: 4, backgroundColor: "white" },
-  checkboxSelected: { backgroundColor: "#FF3B30", borderColor: "#FF3B30" },
-  cardContent: { flex: 1 },
-  row: { fontSize: 16, marginBottom: 5 },
-  label: { fontWeight: "600" },
-  extraContainer: { flexDirection: "row", alignItems: "center", marginTop: 5, gap: 5 },
-  extraLabel: { fontSize: 14, fontWeight: "600" },
-  buttonsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, marginBottom: 30 },
-  button: { backgroundColor: "#FF9500", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", marginHorizontal: 5 },
-  buttonRed: { backgroundColor: "#FF3B30" },
-  buttonText: { color: "white", fontWeight: "600", fontSize: 14 },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#F3F5F7" 
+  },
+  header: {
+    backgroundColor: "#F3F5F7",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  userHeader: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginBottom: 10, 
+    gap: 10 
+  },
+  userAvatar: { 
+    width: 50, 
+    height: 50, 
+    borderRadius: 25 
+  },
+  userGreeting: { 
+    fontSize: 18, 
+    fontWeight: "700" 
+  },
+  title: { 
+    fontSize: 22, 
+    fontWeight: "700", 
+    marginBottom: 5 
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+  },
+  dayBlock: { 
+    marginBottom: 20 
+  },
+  dayTitle: { 
+    fontSize: 18, 
+    fontWeight: "600", 
+    marginBottom: 10, 
+    textTransform: "capitalize" 
+  },
+  card: { 
+    backgroundColor: "white", 
+    borderRadius: 12, 
+    padding: 15, 
+    marginBottom: 10, 
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    flexDirection: "row", 
+    alignItems: "flex-start"
+  },
+  cardSelected: { 
+    borderWidth: 2, 
+    borderColor: "#FF3B30" 
+  },
+  checkboxContainer: { 
+    marginRight: 10, 
+    marginTop: 5 
+  },
+  checkbox: { 
+    width: 20, 
+    height: 20, 
+    borderWidth: 1.5, 
+    borderColor: "#999", 
+    borderRadius: 4, 
+    backgroundColor: "white" 
+  },
+  checkboxSelected: { 
+    backgroundColor: "#FF3B30", 
+    borderColor: "#FF3B30" 
+  },
+  cardContent: { 
+    flex: 1 
+  },
+  row: { 
+    fontSize: 16, 
+    marginBottom: 5 
+  },
+  label: { 
+    fontWeight: "600" 
+  },
+  extraContainer: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginTop: 5, 
+    gap: 5 
+  },
+  extraLabel: { 
+    fontSize: 14, 
+    fontWeight: "600" 
+  },
+  bottomButtonsContainer: {
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  buttonsScrollContent: {
+    paddingHorizontal: 10,
+    gap: 10,
+  },
+  button: { 
+    backgroundColor: "#FF9500", 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 12, 
+    alignItems: "center",
+    minWidth: 120,
+    elevation: 2,
+  },
+  buttonRed: { 
+    backgroundColor: "#FF3B30" 
+  },
+  buttonGreen: {
+    backgroundColor: "#4CAF50",
+  },
+  buttonDarkGreen: {
+    backgroundColor: "#2E7D32",
+  },
+  buttonText: { 
+    color: "white", 
+    fontWeight: "600", 
+    fontSize: 14 
+  },
 });
