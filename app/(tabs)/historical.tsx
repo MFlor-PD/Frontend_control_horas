@@ -19,6 +19,7 @@ import {
   marcarExtra,
 } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
+import { generarFichajesPDF } from "../../utils/generarFichajePdf";
 
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
@@ -38,8 +39,8 @@ export default function Historical() {
     try {
       const data = await historialFichajes();
       const list = data.historial || [];
-      const agrupado: { [key: string]: Fichaje[] } = {};
 
+      const agrupado: { [key: string]: Fichaje[] } = {};
       list.forEach((f) => {
         const key = new Date(f.fecha).toISOString().split("T")[0];
         if (!agrupado[key]) agrupado[key] = [];
@@ -108,11 +109,27 @@ export default function Historical() {
     fetchHistorial();
   };
 
+  /**
+   * ✅ FICHAJES A EXPORTAR (MEJORA PRINCIPAL)
+   * - Si hay seleccionados → solo esos
+   * - Si no → todos
+   * - Siempre ordenados por fecha
+   */
+  const fichajesParaPDF: Fichaje[] = (
+    selectedIds.length > 0
+      ? Object.values(grouped)
+          .flat()
+          .filter((f) => selectedIds.includes(f._id))
+      : Object.values(grouped).flat()
+  ).sort(
+    (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
+  );
+
   if (!user || loading) return null;
 
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER SOLO VISUAL */}
+      {/* HEADER */}
       <View style={styles.userHeader}>
         <Image
           source={{ uri: user.foto || DEFAULT_ICON }}
@@ -137,6 +154,7 @@ export default function Historical() {
 
             {grouped[dia].map((f) => {
               const isSelected = selectedIds.includes(f._id);
+
               return (
                 <View
                   key={f._id}
@@ -203,11 +221,24 @@ export default function Historical() {
           >
             <Text style={styles.buttonText}>Eliminar todo</Text>
           </TouchableOpacity>
+
+          {/* ✅ BOTÓN PDF MEJORADO */}
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: "#4CAF50" }]}
+            onPress={() => generarFichajesPDF(fichajesParaPDF, user)}
+          >
+            <Text style={styles.buttonText}>
+              {selectedIds.length > 0
+                ? "PDF seleccionados"
+                : "Descargar PDF"}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
