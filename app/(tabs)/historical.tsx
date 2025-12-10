@@ -20,6 +20,8 @@ import {
 } from "../../api";
 import { AuthContext } from "../../context/AuthContext";
 import { generarFichajesPDF } from "../../utils/generarFichajePdf";
+import { generarFichajesExcel } from "../../utils/generarFichajesExcel";
+
 
 const DEFAULT_ICON = "https://i.pravatar.cc/150";
 
@@ -115,15 +117,18 @@ export default function Historical() {
    * - Si no → todos
    * - Siempre ordenados por fecha
    */
-  const fichajesParaPDF: Fichaje[] = (
-    selectedIds.length > 0
-      ? Object.values(grouped)
-          .flat()
-          .filter((f) => selectedIds.includes(f._id))
-      : Object.values(grouped).flat()
-  ).sort(
-    (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
-  );
+ 
+
+  const fichajesParaExportar: Fichaje[] = (
+  selectedIds.length > 0
+    ? Object.values(grouped)
+        .flat()
+        .filter((f) => selectedIds.includes(f._id))
+    : Object.values(grouped).flat()
+).sort(
+  (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
+);
+
 
   if (!user || loading) return null;
 
@@ -225,7 +230,7 @@ export default function Historical() {
           {/* ✅ BOTÓN PDF MEJORADO */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: "#4CAF50" }]}
-            onPress={() => generarFichajesPDF(fichajesParaPDF, user)}
+            onPress={() => generarFichajesPDF(fichajesParaExportar, user)}
           >
             <Text style={styles.buttonText}>
               {selectedIds.length > 0
@@ -233,6 +238,18 @@ export default function Historical() {
                 : "Descargar PDF"}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+  style={[styles.button, { backgroundColor: "#2E7D32" }]}
+  onPress={() => generarFichajesExcel(fichajesParaExportar, user)}
+>
+  <Text style={styles.buttonText}>
+    {selectedIds.length > 0
+      ? "Excel seleccionados"
+      : "Descargar Excel"}
+  </Text>
+</TouchableOpacity>
+
         </View>
       )}
     </ScrollView>
